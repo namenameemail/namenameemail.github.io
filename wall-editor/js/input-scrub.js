@@ -1,6 +1,6 @@
 /**
  * Drag horizontally on a number input to change its value.
- * Uses window listeners so scrub continues outside the input.
+ * Click/focus without drag — normal text entry. Scrub starts after a small move threshold.
  */
 
 /**
@@ -45,6 +45,9 @@ export function bindInputScrub(input, opts) {
     pending = false;
     dragging = false;
     input.classList.remove('scrubbing');
+    try {
+      if (activePointerId !== null) input.releasePointerCapture(activePointerId);
+    } catch (_) {}
     cleanupWindow();
     if (wasDragging) onScrubEnd?.();
   }
@@ -56,7 +59,14 @@ export function bindInputScrub(input, opts) {
 
     if (!dragging && Math.abs(e.clientX - startX) >= DRAG_THRESHOLD_PX) {
       dragging = true;
+      pending = false;
       input.classList.add('scrubbing');
+      try {
+        input.setPointerCapture(e.pointerId);
+      } catch (_) {}
+      if (document.activeElement === input) {
+        input.blur();
+      }
     }
 
     if (!dragging) return;
@@ -77,7 +87,6 @@ export function bindInputScrub(input, opts) {
   input.addEventListener('pointerdown', (e) => {
     if (input.disabled || e.button !== 0) return;
 
-    e.preventDefault();
     readStep();
     pending = true;
     dragging = false;

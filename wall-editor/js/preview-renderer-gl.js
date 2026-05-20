@@ -10,18 +10,9 @@ import {
   resizeFramebuffer,
   deleteFramebuffer,
 } from './gl/gl-fbo.js';
-import {
-  wallHomographyToImagePx,
-  itemQuadWithRealUv,
-  itemWallQuadWithRealUv,
-  photoLayoutVerts,
-  quadToTriangleVerts,
-} from './gl/homography-gl.js';
-import {
-  clearColor,
-  drawProjectiveTexturedTris,
-  drawTexturedTris,
-} from './gl/gl-draw.js';
+import { photoLayoutVerts } from './gl/homography-gl.js';
+import { itemMeshVertsOnWall } from './wall-patch.js';
+import { clearColor, drawTexturedTris } from './gl/gl-draw.js';
 
 export const MAX_DPR = 2;
 
@@ -204,22 +195,10 @@ export class PreviewRendererGL {
   /**
    * @param {import('./state.js').Wall} wall
    */
-  _homographyKey(wall) {
-    const c = wall.cornersNorm;
-    if (!c?.length) return '';
-    return `${wall.widthM}:${wall.heightM}:${c.map((p) => `${p.x},${p.y}`).join('|')}`;
-  }
-
-  /**
-   * @param {import('./state.js').Wall} wall
-   */
-  _getH(wall) {
-    const key = this._homographyKey(wall);
-    const cached = this.homographyCache.get(wall.id);
-    if (cached?.key === key) return cached.H;
-    const H = wallHomographyToImagePx(wall, this.layout);
-    if (H) this.homographyCache.set(wall.id, { key, H });
-    return H;
+  _boundaryKey(wall) {
+    const b = wall.wallBoundary;
+    if (!b) return '';
+    return `${wall.widthM}:${wall.heightM}:${boundarySignature(b)}`;
   }
 
   /**
@@ -250,8 +229,11 @@ export class PreviewRendererGL {
    * @param {Float32Array} viewMat
    */
   _drawWallItems(gl, prog, texCache, wall, imageCache, viewMat) {
-    const H = this._getH(wall);
-    if (!H || !this.vbo) return;
+    const boundary = wall.wallBoundary;
+    if (!boundary || !this.vbo) return;
+
+    const { imgW, imgH } = this.layout;
+    if (!imgW || !imgH) return;
 
     for (const item of wall.items) {
       const img = imageCache.get(item.src);
@@ -259,17 +241,16 @@ export class PreviewRendererGL {
       const texEntry = texCache.ensure(item.src, img);
       if (!texEntry) continue;
 
-      const quad = itemWallQuadWithRealUv(item);
+      const verts = itemMeshVertsOnWall(item, wall, boundary, imgW, imgH, this.layout);
+      if (!verts?.length) continue;
 
-      const verts = quadToTriangleVerts(quad.base, quad.uv);
-      drawProjectiveTexturedTris(
+      drawTexturedTris(
         gl,
         prog,
         this.vbo,
         verts,
-        6,
+        verts.length / 4,
         texEntry.tex,
-        H,
         viewMat,
         this.cssW,
         this.cssH,
@@ -331,8 +312,11 @@ export class PreviewRendererGL {
     const fbo = this._ensureWallFbo(wall.id);
     if (!fbo) return;
 
-    const H = this._getH(wall);
-    if (!H) return;
+    const boundary = wall.wallBoundary;
+    if (!boundary) return;
+
+    const { imgW, imgH } = this.layout;
+    if (!imgW || !imgH) return;
 
     const pw = fbo.width;
     const ph = fbo.height;
@@ -350,16 +334,15 @@ export class PreviewRendererGL {
       const texEntry = texCache.ensure(item.src, img);
       if (!texEntry) continue;
 
-      const quad = itemQuadWithRealUv(item, H, this.layout);
-      if (!quad) continue;
+      const verts = itemMeshVertsOnWall(item, wall, boundary, imgW, imgH, this.layout);
+      if (!verts?.length) continue;
 
-      const verts = quadToTriangleVerts(quad.base, quad.uv);
       drawTexturedTris(
         gl,
         prog,
         this.vbo,
         verts,
-        6,
+        verts.length / 4,
         texEntry.tex,
         IDENTITY_VIEW,
         cssW,
@@ -413,7 +396,6 @@ export class PreviewRendererGL {
 
     const viewMat = getViewMatrix?.() ?? IDENTITY_VIEW;
     const prog = this.programs.textured;
-    const projectiveProg = this.programs.projectiveTextured;
     const texCache = this.textureCache;
     if (!texCache || !this.vbo) return;
 
@@ -443,8 +425,8 @@ export class PreviewRendererGL {
     const clipped = this._beginPhotoClip(gl, viewMat);
     if (clipped) {
       for (const wall of walls) {
-        if (!wall.cornersNorm || wall.cornersNorm.length !== 4) continue;
-        this._drawWallItems(gl, projectiveProg, texCache, wall, imageCache, viewMat);
+        if (!wall.wallBoundary) continue;
+        this._drawWallItems(gl, prog, texCache, wall, imageCache, viewMat);
         this.dirtyWalls.delete(wall.id);
       }
       gl.disable(gl.SCISSOR_TEST);

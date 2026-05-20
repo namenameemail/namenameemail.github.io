@@ -3,7 +3,8 @@
  * Walls belong to room; corner calibration is per photo.
  */
 
-import { createPreviewHandles, defaultCornersNorm, wallColorAt } from './preview-handles.js';
+import { createPreviewHandles, resolveWallColor } from './preview-handles.js';
+import { convertBoundaryMode, defaultWallBoundary } from './wall-patch.js';
 import { createPreviewView } from './preview-view.js';
 import { createWallEditor } from './wall-editor.js';
 import { PreviewRendererGL } from './preview-renderer-gl.js';
@@ -30,12 +31,22 @@ import {
   createPhoto,
   normalizeState,
   getActiveContext,
+  getWallBoundary,
   getWallCorners,
+  setWallBoundary,
   setWallCorners,
   isWallEnabledOnPhoto,
   setWallEnabledOnPhoto,
   wallsWithPhotoCorners,
 } from './state.js';
+import { bindFileDropZone } from './file-drop.js';
+import {
+  bindListReorder,
+  reorderArrayById,
+  REORDER_MIME_ITEM,
+  REORDER_MIME_PHOTO,
+  REORDER_MIME_WALL,
+} from './list-reorder.js';
 import { loadPersistedState, savePersistedState } from './storage.js';
 import {
   downloadTextFile,
@@ -161,7 +172,7 @@ function getActiveWall() {
 
 function isWallCalibrated(wall) {
   const { photo } = ctx();
-  return !!getWallCorners(photo, wall.id);
+  return !!getWallBoundary(photo, wall.id);
 }
 
 /**
@@ -170,7 +181,7 @@ function isWallCalibrated(wall) {
  */
 function photoHasCalibration(photo, room) {
   return room.walls.some(
-    (w) => isWallEnabledOnPhoto(photo, w.id) && !!getWallCorners(photo, w.id),
+    (w) => isWallEnabledOnPhoto(photo, w.id) && !!getWallBoundary(photo, w.id),
   );
 }
 
@@ -187,10 +198,10 @@ function toggleWallOnPhoto(wallId, enabled) {
 
 function ensureWallCornersOnPhoto(wallId) {
   const { room, photo } = ctx();
-  if (!room || !photo || getWallCorners(photo, wallId)) return;
+  if (!room || !photo || getWallBoundary(photo, wallId)) return;
 
   const idx = room.walls.findIndex((w) => w.id === wallId);
-  setWallCorners(photo, wallId, defaultCornersNorm(Math.max(0, idx)));
+  setWallBoundary(photo, wallId, defaultWallBoundary(Math.max(0, idx)));
 }
 
 /** Углы по умолчанию для всех стен, включённых на текущем фото. */
@@ -212,12 +223,30 @@ function setStatus(_msg) {
   /* статусная строка отключена */
 }
 
-function getActiveWallColor() {
+function getWallDisplayColor(wallId) {
   const { room } = ctx();
+  if (!room) return '#000000';
+  const i = room.walls.findIndex((w) => w.id === wallId);
+  const wall = i >= 0 ? room.walls[i] : null;
+  return resolveWallColor(wall, i >= 0 ? i : 0);
+}
+
+function getActiveWallColor() {
   const wall = getActiveWall();
-  if (!wall || !room) return '#000000';
-  const i = room.walls.findIndex((w) => w.id === wall.id);
-  return wallColorAt(i >= 0 ? i : 0);
+  return wall ? getWallDisplayColor(wall.id) : '#000000';
+}
+
+function onWallColorChange(wallId, color) {
+  const { room } = ctx();
+  const wall = room?.walls.find((w) => w.id === wallId);
+  if (!wall) return;
+
+  wall.color = color;
+  wallList.reset();
+  wallList.render();
+  previewRenderer.invalidateWall(wallId);
+  scheduleRender({ preview: true, editor: true, ui: true });
+  scheduleSave();
 }
 
 function updateProjectTitle() {
@@ -499,12 +528,28 @@ function renderPreview() {
   });
 }
 
-function onCornersChange(wallId, corners, options = {}) {
+function onBoundaryModeChange(wallId, mode) {
+  const { photo } = ctx();
+  if (!photo) return;
+
+  const boundary = getWallBoundary(photo, wallId);
+  if (!boundary) return;
+
+  const next = convertBoundaryMode(boundary, mode);
+  setWallBoundary(photo, wallId, next);
+  previewRenderer.invalidateWall(wallId);
+  wallList.reset();
+  wallList.render();
+  scheduleRender({ preview: true, editor: true, ui: true });
+  scheduleSave();
+}
+
+function onBoundaryChange(wallId, boundary, options = {}) {
   const { save = true } = options;
   const { photo } = ctx();
   if (!photo) return;
 
-  setWallCorners(photo, wallId, corners);
+  setWallBoundary(photo, wallId, boundary);
   previewRenderer.invalidateWall(wallId);
   if (save) scheduleSave();
   scheduleRender({ preview: true, editor: true, ui: save });
@@ -822,6 +867,45 @@ async function addRoom() {
   setStatus(`Комната «${room.name}» создана. Добавьте фото.`);
 }
 
+async function ensureProjectRoomForPhotos() {
+  if (!appState.projects.length) addProject();
+  if (!ctx().room) await addRoom();
+}
+
+function reorderRoomPhotos(photoId, targetPhotoId, placeAfter) {
+  const { room } = ctx();
+  if (!room) return;
+  const ok = reorderArrayById(room.photos, photoId, targetPhotoId, placeAfter, (p) => p.id);
+  if (!ok) return;
+  resetNavUi();
+  renderNavUi();
+  scheduleSave();
+}
+
+function reorderRoomWalls(wallId, targetWallId, placeAfter) {
+  const { room } = ctx();
+  if (!room) return;
+  const ok = reorderArrayById(room.walls, wallId, targetWallId, placeAfter, (w) => w.id);
+  if (!ok) return;
+  wallList.reset();
+  renderNavUi();
+  scheduleRender({ preview: true, editor: true, ui: true });
+  scheduleSave();
+}
+
+function reorderWallItems(wallId, itemId, targetItemId, placeAfter) {
+  const { room } = ctx();
+  if (!room) return;
+  const wall = room.walls.find((w) => w.id === wallId);
+  if (!wall) return;
+  const ok = reorderArrayById(wall.items, itemId, targetItemId, placeAfter, (it) => it.id);
+  if (!ok) return;
+  wallList.reset();
+  onWallUpdate(wall);
+  scheduleRender({ preview: true, editor: true, ui: true });
+  scheduleSave();
+}
+
 async function addPhotosFromFiles(files) {
   const { room } = ctx();
   if (!room || !files.length) return;
@@ -872,6 +956,77 @@ function readFileAsDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * @param {File} file
+ * @param {Wall} wall
+ * @returns {Promise<WallItem|null>}
+ */
+async function addItemFromFile(file, wall) {
+  if (!wall) return null;
+
+  const src = await readFileAsDataUrl(file);
+  const img = await ensureImageCached(src);
+  const ar =
+    img.naturalWidth > 0 && img.naturalHeight > 0
+      ? img.naturalWidth / img.naturalHeight
+      : 1;
+
+  const defaultW = Math.min(1, wall.widthM * 0.4);
+  const defaultH = defaultW / ar;
+
+  const baseName = file.name.replace(/\.[^.]+$/, '').trim();
+  const item = {
+    id: uid(),
+    name: baseName || `Картинка ${wall.items.length + 1}`,
+    src,
+    xM: (wall.widthM - defaultW) / 2,
+    yM: (wall.heightM - defaultH) / 2,
+    widthM: defaultW,
+    heightM: defaultH,
+    rotationDeg: 0,
+    aspectRatio: ar,
+    manualWidth: true,
+    manualHeight: false,
+  };
+  clampItemToWall(item, wall);
+  wall.items.push(item);
+  return item;
+}
+
+/**
+ * @param {File[]} files
+ * @param {string} [wallId]
+ */
+async function addItemsFromFiles(files, wallId) {
+  const { room } = ctx();
+  if (!files.length || !room) return;
+
+  const targetId = wallId ?? room.activeWallId;
+  const wall = room.walls.find((w) => w.id === targetId);
+  if (!wall) return;
+
+  if (room.activeWallId !== wall.id) {
+    selectWall(wall.id);
+  }
+
+  const added = [];
+  for (const file of files) {
+    const item = await addItemFromFile(file, wall);
+    if (item) added.push(item);
+  }
+  if (!added.length) return;
+
+  wallList.reset();
+  selectItem(added[added.length - 1].id);
+  onWallUpdate(wall);
+  setStatus(
+    added.length === 1
+      ? 'Картинка добавлена.'
+      : `Добавлено картинок: ${added.length}`,
+  );
+  scheduleRenderNow({ preview: true, editor: true, ui: true });
 }
 
 function deleteRoom(roomId) {
@@ -1008,6 +1163,9 @@ const wallList = createWallList({
   onDimChange: onWallDimChange,
   onDelete: requestDeleteWall,
   onRenameWall: renameWall,
+  onColorChange: onWallColorChange,
+  getWallBoundary: (wallId) => getWallBoundary(ctx().photo, wallId),
+  onBoundaryModeChange,
   onScrubEnd: finishInteractiveEdit,
   canDeleteWall: () => (ctx().room?.walls.length ?? 0) > 1,
   roundM,
@@ -1095,14 +1253,10 @@ const previewView = createPreviewView({
 
 previewHandles = createPreviewHandles({
   getWalls: getWallsForPreview,
-  getWallColorIndex: (wallId) => {
-    const { room } = ctx();
-    if (!room) return 0;
-    const i = room.walls.findIndex((w) => w.id === wallId);
-    return i >= 0 ? i : 0;
-  },
+  getWallColor: getWallDisplayColor,
   getActiveWallId,
-  onCornersChange,
+  onSelectWall: selectWall,
+  onBoundaryChange,
   screenToNorm: (x, y) => previewView.screenToNorm(x, y),
   normToScreen: (norm) => previewView.normToScreen(norm),
   getScreenRect: () => previewRenderer.getScreenRect(),
@@ -1148,7 +1302,7 @@ const wallEditor = createWallEditor({
     if (!photo || !wall) return { image: null, corners: null };
     return {
       image: activePhotoImage,
-      corners: getWallCorners(photo, wall.id),
+      boundary: getWallBoundary(photo, wall.id),
     };
   },
   getCleanExportPreview: () => cleanEditorExportMode,
@@ -1163,11 +1317,7 @@ photoImagesInput.addEventListener('change', async (e) => {
   const files = [...(e.target.files || [])];
   if (!files.length) return;
 
-  if (!appState.projects.length) addProject();
-  if (!ctx().room) {
-    await addRoom();
-  }
-
+  await ensureProjectRoomForPhotos();
   await addPhotosFromFiles(files);
   e.target.value = '';
 });
@@ -1177,43 +1327,62 @@ btnAddPhoto.addEventListener('click', () => photoImagesInput.click());
 overlayInput.addEventListener('change', async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
-
-  const wall = getActiveWall();
-  if (!wall) return;
-
-  const src = await readFileAsDataUrl(file);
-  const img = await ensureImageCached(src);
-  const ar =
-    img.naturalWidth > 0 && img.naturalHeight > 0
-      ? img.naturalWidth / img.naturalHeight
-      : 1;
-
-  const defaultW = Math.min(1, wall.widthM * 0.4);
-  const defaultH = defaultW / ar;
-
-  const baseName = file.name.replace(/\.[^.]+$/, '').trim();
-  const item = {
-    id: uid(),
-    name: baseName || `Картинка ${wall.items.length + 1}`,
-    src,
-    xM: (wall.widthM - defaultW) / 2,
-    yM: (wall.heightM - defaultH) / 2,
-    widthM: defaultW,
-    heightM: defaultH,
-    rotationDeg: 0,
-    aspectRatio: ar,
-    manualWidth: true,
-    manualHeight: false,
-  };
-  clampItemToWall(item, wall);
-
-  wall.items.push(item);
-  wallList.reset();
-  selectItem(item.id);
-  onWallUpdate(wall);
-  setStatus('Картинка добавлена.');
-  scheduleRenderNow({ preview: true, editor: true, ui: true });
+  await addItemsFromFiles([file], getActiveWall()?.id);
   e.target.value = '';
+});
+
+const photoListEl = document.getElementById('photo-list');
+const wallListEl = document.getElementById('wall-list');
+
+bindFileDropZone(photoListEl, {
+  onFiles: async (files) => {
+    await ensureProjectRoomForPhotos();
+    await addPhotosFromFiles(files);
+  },
+});
+
+bindFileDropZone(wallListEl, {
+  canAccept: () => !!ctx().photo && (ctx().room?.walls.length ?? 0) > 0,
+  getDropTarget: (e) => {
+    const block = e.target.closest('.wall-items-block');
+    return block ? /** @type {HTMLElement} */ (block) : null;
+  },
+  onFiles: (files, dropTarget) => {
+    const wallId = dropTarget.dataset.wallId;
+    if (!wallId) return;
+    return addItemsFromFiles(files, wallId);
+  },
+});
+
+bindListReorder(photoListEl, {
+  mime: REORDER_MIME_PHOTO,
+  itemSelector: '.photo-nav-entry:not(.photo-nav-add)',
+  markerSelector: '.photo-nav-row',
+  handleSelector: '.list-reorder-handle',
+  getItemId: (el) => el.dataset.photoId ?? null,
+  onReorder: reorderRoomPhotos,
+});
+
+bindListReorder(wallListEl, {
+  mime: REORDER_MIME_WALL,
+  itemSelector: '.wall-list-entry',
+  handleSelector: '.list-reorder-handle-wrap--wall',
+  skipTargetSelector: '.item-list-entry',
+  getItemId: (el) => el.dataset.wallId ?? null,
+  onReorder: reorderRoomWalls,
+});
+
+bindListReorder(wallListEl, {
+  mime: REORDER_MIME_ITEM,
+  itemSelector: '.item-list-entry',
+  handleSelector: '.list-reorder-handle',
+  getItemId: (el) => el.dataset.itemId ?? null,
+  onReorder: (itemId, targetItemId, placeAfter) => {
+    const entry = wallListEl.querySelector(`.item-list-entry[data-item-id="${itemId}"]`);
+    const wallId = entry?.closest('.wall-items-block')?.dataset.wallId;
+    if (!wallId) return;
+    reorderWallItems(wallId, itemId, targetItemId, placeAfter);
+  },
 });
 
 btnAddWall.addEventListener('click', addWall);
@@ -1296,7 +1465,7 @@ btnDownloadJpg.addEventListener('click', async () => {
     walls: room.walls,
     photo,
     isWallEnabled: isWallEnabledOnPhoto,
-    getCorners: getWallCorners,
+    getBoundary: getWallBoundary,
     imageCache,
     quality: 0.92,
   });

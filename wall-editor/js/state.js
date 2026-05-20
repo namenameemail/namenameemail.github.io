@@ -2,7 +2,14 @@
  * App state: projects → rooms → photos; walls & items belong to room.
  */
 
+import {
+  normalizeWallBoundary,
+  straightEdgesFromCorners,
+  withCurveData,
+} from './wall-patch.js';
+
 /** @typedef {{x:number,y:number}} PointNorm */
+/** @typedef {import('./wall-patch.js').WallBoundary} WallBoundary */
 /**
  * @typedef {Object} WallItem
  * @property {string} id
@@ -23,6 +30,7 @@
  * @property {string} name
  * @property {number} widthM
  * @property {number} heightM
+ * @property {string} [color] цвет разметки стены (#rrggbb)
  * @property {WallItem[]} items
  */
 /**
@@ -30,7 +38,7 @@
  * @property {string} id
  * @property {string} name
  * @property {string} imageSrc
- * @property {Record<string, PointNorm[]|null|undefined>} cornersByWallId
+ * @property {Record<string, PointNorm[]|WallBoundary|null|undefined>} cornersByWallId
  * @property {Record<string, boolean>} [wallEnabled] wallId → false если стена выключена на этом фото
  */
 /**
@@ -124,12 +132,36 @@ export function createProject(n) {
 /**
  * @param {Photo|null|undefined} photo
  * @param {string} wallId
+ * @returns {WallBoundary|null}
+ */
+export function getWallBoundary(photo, wallId) {
+  if (!photo) return null;
+  return normalizeWallBoundary(photo.cornersByWallId[wallId]);
+}
+
+/**
+ * @param {Photo|null|undefined} photo
+ * @param {string} wallId
  * @returns {PointNorm[]|null}
  */
 export function getWallCorners(photo, wallId) {
-  if (!photo) return null;
-  const c = photo.cornersByWallId[wallId];
-  return c?.length === 4 ? c : null;
+  const b = getWallBoundary(photo, wallId);
+  return b?.corners ?? null;
+}
+
+/**
+ * @param {Photo} photo
+ * @param {string} wallId
+ * @param {WallBoundary|PointNorm[]|null} boundary
+ */
+export function setWallBoundary(photo, wallId, boundary) {
+  if (!photo.cornersByWallId) photo.cornersByWallId = {};
+  if (!boundary) {
+    delete photo.cornersByWallId[wallId];
+    return;
+  }
+  const norm = normalizeWallBoundary(boundary);
+  photo.cornersByWallId[wallId] = norm;
 }
 
 /**
@@ -138,8 +170,20 @@ export function getWallCorners(photo, wallId) {
  * @param {PointNorm[]|null} corners
  */
 export function setWallCorners(photo, wallId, corners) {
-  if (!photo.cornersByWallId) photo.cornersByWallId = {};
-  photo.cornersByWallId[wallId] = corners;
+  if (!corners || corners.length !== 4) {
+    setWallBoundary(photo, wallId, null);
+    return;
+  }
+  const prev = getWallBoundary(photo, wallId);
+  if (prev) {
+    setWallBoundary(photo, wallId, { ...withCurveData(prev), corners });
+    return;
+  }
+  setWallBoundary(photo, wallId, {
+    mode: 'edge',
+    corners,
+    edges: straightEdgesFromCorners(corners),
+  });
 }
 
 /**
@@ -239,6 +283,7 @@ function normalizeWall(w) {
     name: rest.name || 'Стена',
     widthM: rest.widthM ?? 4,
     heightM: rest.heightM ?? 2.7,
+    color: typeof rest.color === 'string' ? rest.color : undefined,
     items: rest.items || [],
   };
 }
@@ -397,13 +442,17 @@ export function getActiveContext(state) {
 /**
  * @param {Room} room
  * @param {Photo|null} photo
- * @returns {(Wall & {cornersNorm: PointNorm[]|null})[]}
+ * @returns {(Wall & { wallBoundary: WallBoundary|null, cornersNorm: PointNorm[]|null })[]}
  */
 export function wallsWithPhotoCorners(room, photo) {
   return room.walls
     .filter((wall) => isWallEnabledOnPhoto(photo, wall.id))
-    .map((wall) => ({
-      ...wall,
-      cornersNorm: getWallCorners(photo, wall.id),
-    }));
+    .map((wall) => {
+      const wallBoundary = getWallBoundary(photo, wall.id);
+      return {
+        ...wall,
+        wallBoundary,
+        cornersNorm: wallBoundary?.corners ?? null,
+      };
+    });
 }

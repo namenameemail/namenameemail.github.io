@@ -4,6 +4,7 @@
 
 import { bindEditableName } from './inline-rename.js';
 import { startInlineRename } from './inline-rename.js';
+import { wrapThumbWithReorderHandle } from './list-reorder.js';
 
 /** @typedef {import('./state.js').Room} Room */
 /** @typedef {import('./state.js').Photo} Photo */
@@ -123,15 +124,15 @@ export function createNavPanels(opts) {
         e.stopPropagation();
         onDeletePhoto(photo.id);
       });
-      row.append(thumb, btn, renameBtn, delBtn);
+      row.append(wrapThumbWithReorderHandle(thumb), btn, renameBtn, delBtn);
       li.appendChild(row);
 
       row.addEventListener('click', (e) => {
-        if (e.target.closest('button, .inline-rename-input, .btn-rename')) return;
+        if (e.target.closest('button, .inline-rename-input, .btn-rename, .list-reorder-handle')) return;
         onSelectPhoto(photo.id, room.id);
       });
       li.addEventListener('click', (e) => {
-        if (e.target.closest('button, .inline-rename-input, .btn-rename')) return;
+        if (e.target.closest('button, .inline-rename-input, .btn-rename, .list-reorder-handle')) return;
         onSelectPhoto(photo.id, room.id);
       });
 

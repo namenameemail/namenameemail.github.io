@@ -4,7 +4,14 @@
 
 import { bindInputScrub } from './input-scrub.js';
 import { bindEditableName } from './inline-rename.js';
-import { wallColorAt } from './preview-handles.js';
+import { resolveWallColor, toColorInputValue } from './preview-handles.js';
+import {
+  BOUNDARY_MODE_EDGE,
+  BOUNDARY_MODE_OFF,
+  BOUNDARY_MODE_VERTEX,
+  getBoundaryMode,
+} from './wall-patch.js';
+import { createWallReorderHandle } from './list-reorder.js';
 
 /**
  * @param {object} opts
@@ -19,6 +26,9 @@ import { wallColorAt } from './preview-handles.js';
  * @param {(wallId: string, field: 'widthM'|'heightM', value: number, save: boolean) => void} opts.onDimChange
  * @param {(wallId: string) => void} opts.onDelete
  * @param {(wallId: string, name: string) => void} opts.onRenameWall
+ * @param {(wallId: string, color: string) => void} opts.onColorChange
+ * @param {(wallId: string) => import('./wall-patch.js').WallBoundary|null} opts.getWallBoundary
+ * @param {(wallId: string, mode: import('./wall-patch.js').BoundaryMode) => void} opts.onBoundaryModeChange
  * @param {() => void} opts.onScrubEnd
  * @param {() => boolean} opts.canDeleteWall
  * @param {(n: number) => number} opts.roundM
@@ -37,6 +47,9 @@ export function createWallList(opts) {
     onDimChange,
     onDelete,
     onRenameWall,
+    onColorChange,
+    getWallBoundary,
+    onBoundaryModeChange,
     onScrubEnd,
     canDeleteWall,
     roundM,
@@ -44,6 +57,38 @@ export function createWallList(opts) {
   } = opts;
 
   let listKey = '';
+
+  const colorPicker = document.createElement('input');
+  colorPicker.type = 'color';
+  colorPicker.className = 'wall-color-picker';
+  colorPicker.hidden = true;
+  colorPicker.setAttribute('aria-hidden', 'true');
+  container.appendChild(colorPicker);
+
+  /** @type {((e: Event) => void)|null} */
+  let colorPickerHandler = null;
+
+  /**
+   * @param {import('./state.js').Wall} wall
+   * @param {number} index
+   */
+  function openColorPicker(wall, index) {
+    colorPicker.value = toColorInputValue(resolveWallColor(wall, index));
+    if (colorPickerHandler) {
+      colorPicker.removeEventListener('input', colorPickerHandler);
+      colorPicker.removeEventListener('change', colorPickerHandler);
+    }
+    colorPickerHandler = () => {
+      onColorChange(wall.id, colorPicker.value);
+    };
+    colorPicker.addEventListener('input', colorPickerHandler);
+    colorPicker.addEventListener('change', colorPickerHandler);
+    if (typeof colorPicker.showPicker === 'function') {
+      colorPicker.showPicker();
+    } else {
+      colorPicker.click();
+    }
+  }
 
   const imageAddPark = document.getElementById('nav-image-add-park');
   const imageAddBtn = document.getElementById('btn-add-image');
@@ -78,9 +123,21 @@ export function createWallList(opts) {
       onScrub: (v) => onDimChange(wall.id, field, v, false),
       onScrubEnd,
     });
-    input.addEventListener('change', () => {
+    const commitTyped = () => {
       const value = parseFloat(input.value);
       if (!Number.isNaN(value)) onDimChange(wall.id, field, value, true);
+    };
+    input.addEventListener('input', () => {
+      const value = parseFloat(input.value);
+      if (!Number.isNaN(value)) onDimChange(wall.id, field, value, false);
+    });
+    input.addEventListener('change', commitTyped);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitTyped();
+        input.blur();
+      }
     });
     input.addEventListener('click', (e) => e.stopPropagation());
 
@@ -123,9 +180,17 @@ export function createWallList(opts) {
       const topRow = document.createElement('div');
       topRow.className = 'wall-list-head-top';
 
-      const swatch = document.createElement('span');
+      topRow.appendChild(createWallReorderHandle());
+
+      const swatch = document.createElement('button');
+      swatch.type = 'button';
       swatch.className = 'wall-list-swatch';
-      swatch.style.background = wallColorAt(index);
+      swatch.title = 'Цвет стены';
+      swatch.style.background = resolveWallColor(wall, index);
+      swatch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openColorPicker(wall, index);
+      });
 
       const title = document.createElement('button');
       title.type = 'button';
@@ -166,13 +231,48 @@ export function createWallList(opts) {
       head.appendChild(topRow);
       li.appendChild(head);
 
-      if (itemRenderer && wall.id === activeId) {
+      if (itemRenderer) {
         const block = document.createElement('div');
         block.className = 'wall-items-block';
+        block.dataset.wallId = wall.id;
 
-        const toolbar = document.createElement('div');
-        toolbar.className = 'wall-item-toolbar';
-        block.appendChild(toolbar);
+        if (wall.id === activeId) {
+          const toolbar = document.createElement('div');
+          toolbar.className = 'wall-item-toolbar';
+
+          const curveLabel = document.createElement('label');
+          curveLabel.className = 'wall-list-curve-label';
+          curveLabel.title = 'Способ задания кривой границы на фото';
+
+          const curveText = document.createElement('span');
+          curveText.className = 'wall-list-curve-text';
+          curveText.textContent = 'Кривая';
+
+          const curveSelect = document.createElement('select');
+          curveSelect.className = 'wall-list-curve-select';
+          const optOff = document.createElement('option');
+          optOff.value = BOUNDARY_MODE_OFF;
+          optOff.textContent = 'Выкл';
+          const optEdge = document.createElement('option');
+          optEdge.value = BOUNDARY_MODE_EDGE;
+          optEdge.textContent = 'Ребро (кв.)';
+          const optVertex = document.createElement('option');
+          optVertex.value = BOUNDARY_MODE_VERTEX;
+          optVertex.textContent = 'Вершина (куб.)';
+          curveSelect.append(optOff, optEdge, optVertex);
+
+          const boundary = getWallBoundary(wall.id);
+          curveSelect.value = boundary ? getBoundaryMode(boundary) : BOUNDARY_MODE_EDGE;
+          curveSelect.addEventListener('click', (e) => e.stopPropagation());
+          curveSelect.addEventListener('change', (e) => {
+            e.stopPropagation();
+            onBoundaryModeChange(wall.id, /** @type {import('./wall-patch.js').BoundaryMode} */ (curveSelect.value));
+          });
+
+          curveLabel.append(curveText, curveSelect);
+          toolbar.appendChild(curveLabel);
+          block.appendChild(toolbar);
+        }
 
         if (wall.items.length) {
           const itemsHost = document.createElement('div');
@@ -182,17 +282,18 @@ export function createWallList(opts) {
         }
 
         li.appendChild(block);
-      } else if (itemRenderer && wall.items.length) {
-        const itemsHost = document.createElement('div');
-        itemsHost.className = 'nav-item-list';
-        itemRenderer.appendWallItems(itemsHost, wall);
-        li.appendChild(itemsHost);
       }
 
       container.appendChild(li);
 
       li.addEventListener('click', (e) => {
-        if (e.target.closest('input, button, label, .inline-rename-input, .btn-rename, .nav-item-list')) return;
+        if (
+          e.target.closest(
+            'input, button, label, .inline-rename-input, .btn-rename, .nav-item-list, .list-reorder-handle, .list-reorder-handle-wrap--wall',
+          )
+        ) {
+          return;
+        }
         onSelect(wall.id);
       });
     });
@@ -209,7 +310,9 @@ export function createWallList(opts) {
               `${i.id}:${i.name ?? ''}:${i.xM}:${i.yM}:${i.widthM}:${i.heightM}:${i.rotationDeg ?? 0}:${i.manualWidth}:${i.manualHeight}`,
           )
           .join(',');
-        return `${w.id}:${w.name}:${w.widthM}:${w.heightM}:${isEnabledOnPhoto(w.id)}:${w.id === activeId}:${items}`;
+        const b = getWallBoundary(w.id);
+        const mode = b ? getBoundaryMode(b) : BOUNDARY_MODE_EDGE;
+        return `${w.id}:${w.name}:${w.color ?? ''}:${mode}:${w.widthM}:${w.heightM}:${isEnabledOnPhoto(w.id)}:${w.id === activeId}:${items}`;
       })
       .join('|');
   }

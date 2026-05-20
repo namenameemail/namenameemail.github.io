@@ -5,6 +5,7 @@
 import { bindInputScrub } from './input-scrub.js';
 import { bindEditableName } from './inline-rename.js';
 import { getItemDisplayName, normalizeWallItem } from './item-aspect.js';
+import { wrapThumbWithReorderHandle } from './list-reorder.js';
 
 /** @typedef {import('./state.js').Wall} Wall */
 /** @typedef {import('./state.js').WallItem} WallItem */
@@ -43,9 +44,21 @@ export function createItemListRenderer(opts) {
       onScrub: (v) => onFieldChange(itemId, field, v, false),
       onScrubEnd,
     });
-    input.addEventListener('change', () => {
+    const commitTyped = () => {
       const value = parseFloat(input.value);
       if (!Number.isNaN(value)) onFieldChange(itemId, field, value, true);
+    };
+    input.addEventListener('input', () => {
+      const value = parseFloat(input.value);
+      if (!Number.isNaN(value)) onFieldChange(itemId, field, value, false);
+    });
+    input.addEventListener('change', commitTyped);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitTyped();
+        input.blur();
+      }
     });
   }
 
@@ -211,11 +224,13 @@ export function createItemListRenderer(opts) {
       delBtn.title = 'Удалить';
       delBtn.textContent = '×';
 
-      li.append(thumb, body, delBtn);
+      li.append(wrapThumbWithReorderHandle(thumb), body, delBtn);
       listEl.appendChild(li);
 
       li.addEventListener('click', (e) => {
-        if (e.target.closest('input, button, label, .inline-rename-input, .btn-rename')) return;
+        if (e.target.closest('input, button, label, .inline-rename-input, .btn-rename, .list-reorder-handle')) {
+          return;
+        }
         onSelect(item.id);
       });
       delBtn.addEventListener('click', (e) => {

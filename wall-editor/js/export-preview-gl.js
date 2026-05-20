@@ -5,33 +5,23 @@
 import { createWebGL2 } from './gl/gl-context.js';
 import { createPreviewPrograms, IDENTITY_VIEW } from './gl/gl-shaders.js';
 import { GlTextureCache } from './gl/gl-textures.js';
-import {
-  homographyWallToImage,
-  cornersNormToPx,
-} from './homography.js';
-import {
-  itemWallQuadWithRealUv,
-  quadToTriangleVerts,
-} from './gl/homography-gl.js';
-import {
-  clearColor,
-  drawProjectiveTexturedTris,
-  drawTexturedTris,
-} from './gl/gl-draw.js';
+import { itemMeshVertsOnWall } from './wall-patch.js';
+import { quadToTriangleVerts } from './gl/homography-gl.js';
+import { clearColor, drawTexturedTris } from './gl/gl-draw.js';
 
 /**
  * @param {object} opts
  * @param {HTMLImageElement} opts.roomImage
  * @param {import('./state.js').Wall[]} opts.walls
  * @param {(photo: import('./state.js').Photo, wallId: string) => boolean} opts.isWallEnabled
- * @param {(photo: import('./state.js').Photo, wallId: string) => import('./state.js').PointNorm[]|null} opts.getCorners
+ * @param {(photo: import('./state.js').Photo, wallId: string) => import('./wall-patch.js').WallBoundary|null} opts.getBoundary
  * @param {import('./state.js').Photo} opts.photo
  * @param {Map<string, HTMLImageElement>} opts.imageCache
  * @param {number} [opts.quality]
  * @returns {Promise<Blob|null>}
  */
 export async function exportPreviewJpg(opts) {
-  const { roomImage, walls, isWallEnabled, getCorners, photo, imageCache, quality = 0.92 } =
+  const { roomImage, walls, isWallEnabled, getBoundary, photo, imageCache, quality = 0.92 } =
     opts;
 
   const imgW = roomImage.naturalWidth;
@@ -76,14 +66,12 @@ export async function exportPreviewJpg(opts) {
     drawTexturedTris(gl, programs.textured, vbo, verts, 6, photoTex.tex, IDENTITY_VIEW, imgW, imgH, 1);
   }
 
+  const layout = { imgW, imgH, offsetX: 0, offsetY: 0, scale: 1 };
+
   for (const wall of walls) {
     if (!isWallEnabled(photo, wall.id)) continue;
-    const corners = getCorners(photo, wall.id);
-    if (!corners || corners.length !== 4) continue;
-
-    const dstPx = cornersNormToPx(corners, imgW, imgH);
-    const H = homographyWallToImage(wall.widthM, wall.heightM, dstPx);
-    if (!H) continue;
+    const boundary = getBoundary(photo, wall.id);
+    if (!boundary) continue;
 
     for (const item of wall.items) {
       const img = imageCache.get(item.src);
@@ -91,17 +79,16 @@ export async function exportPreviewJpg(opts) {
       const texEntry = texCache.ensure(item.src, img);
       if (!texEntry) continue;
 
-      const quad = itemWallQuadWithRealUv(item);
+      const verts = itemMeshVertsOnWall(item, wall, boundary, imgW, imgH, layout, 10);
+      if (!verts?.length) continue;
 
-      const verts = quadToTriangleVerts(quad.base, quad.uv);
-      drawProjectiveTexturedTris(
+      drawTexturedTris(
         gl,
-        programs.projectiveTextured,
+        programs.textured,
         vbo,
         verts,
-        6,
+        verts.length / 4,
         texEntry.tex,
-        H,
         IDENTITY_VIEW,
         imgW,
         imgH,

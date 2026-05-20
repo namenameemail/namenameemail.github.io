@@ -2,7 +2,7 @@
  * 2D wall editor: place overlay images in meters (move on canvas).
  */
 
-import { applyH, cornersNormToPx, homographyWallToImage } from './homography.js';
+import { boundarySignature, wallMetersToPx } from './wall-patch.js';
 import { drawTexturedQuad, itemQuadMeters } from './warp.js';
 
 const MAX_DPR = 2;
@@ -24,7 +24,7 @@ const MAX_BG_PIXELS = 900_000;
  * @param {() => void} [opts.onDragEnd]
  * @param {Map<string, HTMLImageElement>} opts.imageCache
  * @param {() => string} [opts.getWallColor]
- * @param {() => { image: HTMLImageElement|null, corners: {x:number,y:number}[]|null }} [opts.getPhotoBackground]
+ * @param {() => { image: HTMLImageElement|null, boundary: import('./wall-patch.js').WallBoundary|null }} [opts.getPhotoBackground]
  * @param {() => boolean} [opts.getCleanExportPreview]
  */
 export function createWallEditor(opts) {
@@ -149,7 +149,7 @@ export function createWallEditor(opts) {
     }
   }
 
-  function renderPhotoBackground(layout, image, corners) {
+  function renderPhotoBackground(layout, image, boundary) {
     const iw = image.naturalWidth || image.width;
     const ih = image.naturalHeight || image.height;
     if (!iw || !ih) return null;
@@ -165,19 +165,12 @@ export function createWallEditor(opts) {
       layout.wall.heightM,
       outW,
       outH,
-      corners.map((p) => `${p.x.toFixed(6)},${p.y.toFixed(6)}`).join('|'),
+      boundarySignature(boundary),
     ].join(':');
     if (key === bgKey) return bgCanvas;
 
     const src = getSourcePixels(image);
     if (!src?.data) return null;
-
-    const H = homographyWallToImage(
-      layout.wall.widthM,
-      layout.wall.heightM,
-      cornersNormToPx(corners, iw, ih),
-    );
-    if (!H) return null;
 
     bgCanvas.width = outW;
     bgCanvas.height = outH;
@@ -186,16 +179,15 @@ export function createWallEditor(opts) {
 
     const imgData = bgCtx.createImageData(outW, outH);
     const out = imgData.data;
+    const { widthM, heightM } = layout.wall;
 
-    // Inverse render: each editor pixel is converted to wall meters, then
-    // projected into the original photo by the same homography used in preview.
     for (let y = 0; y < outH; y++) {
-      const yM = layout.wall.heightM * (1 - (y + 0.5) / outH);
+      const yM = heightM * (1 - (y + 0.5) / outH);
       for (let x = 0; x < outW; x++) {
-        const xM = layout.wall.widthM * ((x + 0.5) / outW);
-        const p = applyH(H, xM, yM);
+        const xM = widthM * ((x + 0.5) / outW);
+        const p = wallMetersToPx(boundary, xM, yM, widthM, heightM, iw, ih);
         const offset = (y * outW + x) * 4;
-        if (p) sampleBilinear(src, p.x, p.y, out, offset);
+        sampleBilinear(src, p.x, p.y, out, offset);
       }
     }
 
@@ -359,9 +351,9 @@ export function createWallEditor(opts) {
 
     const bg = getPhotoBackground?.();
     const photoImg = bg?.image;
-    const corners = bg?.corners;
-    if (photoImg?.complete && corners?.length === 4) {
-      const bgImage = renderPhotoBackground(layout, photoImg, corners);
+    const boundary = bg?.boundary;
+    if (photoImg?.complete && boundary) {
+      const bgImage = renderPhotoBackground(layout, photoImg, boundary);
       if (bgImage) {
         ctx.save();
         ctx.beginPath();
