@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Визуализатор стен</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-project-group">
+      <button
+        type="button"
+        id="project-title"
+        class="toolbar-project-title"
+        title="Двойной клик — переименовать проект"
+        disabled
+      ></button>
+      <button
+        type="button"
+        id="btn-open-projects"
+        class="btn btn-project-picker"
+        aria-haspopup="dialog"
+        aria-expanded="false"
+      >
+        проекты
+      </button>
+    </div>
+    <button type="button" id="btn-export-rvz" class="btn" disabled>Экспорт</button>
+    <label class="btn">
+      Импорт
+      <input type="file" id="import-rvz-input" accept=".rvz,application/json" hidden>
+    </label>
+  </header>
+
+  <nav class="room-tabs-bar" id="room-tabs-bar" aria-label="Комнаты" hidden>
+    <div class="room-tabs-scroll">
+      <ul class="room-tabs-list" id="room-tabs-list"></ul>
+      <button type="button" id="btn-add-room" class="btn btn-sm room-tabs-add" disabled>+ Комната</button>
+    </div>
+  </nav>
+
+  <div class="app-body">
+    <aside class="app-sidebar" id="app-sidebar">
+      <section class="nav-section room-content-section" id="room-content-section" hidden>
+        <input type="file" id="photo-images-input" accept="image/*" multiple hidden>
+        <div id="nav-photo-add-park" class="nav-photo-add-park" hidden>
+          <button type="button" id="btn-add-photo" class="btn btn-sm" disabled>+ Фото</button>
+        </div>
+        <button type="button" class="room-content-title" id="room-content-title" title="Двойной клик — переименовать комнату"></button>
+        <ul class="room-photo-list" id="photo-list"></ul>
+        <div id="nav-photo-scene" class="nav-photo-scene" hidden>
+          <div class="nav-scene-actions">
+            <button type="button" id="btn-add-wall" class="btn btn-sm" disabled>+ Стена</button>
+          </div>
+          <div id="nav-image-add-park" class="nav-image-add-park" hidden>
+            <button type="button" id="btn-add-image" class="btn btn-sm" disabled>+ Картинка</button>
+          </div>
+          <p class="nav-scene-empty" id="wall-list-empty" hidden>Нет стен. Нажмите «+ Стена».</p>
+          <ul class="nav-wall-list" id="wall-list"></ul>
+        </div>
+      </section>
+    </aside>
+
+    <div
+      class="splitter splitter-v"
+      id="splitter-sidebar"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Изменить ширину боковой панели"
+      tabindex="0"
+    ></div>
+
+    <main class="workspace layout" id="workspace">
+      <section class="panel panel-preview" id="panel-preview">
+        <div class="canvas-wrap preview-canvas-wrap" id="preview-wrap">
+          <div class="preview-view-controls">
+            <button type="button" id="btn-download-jpg" class="btn btn-sm btn-accent" disabled>
+              Скачать JPG
+            </button>
+            <button type="button" id="btn-zoom-out" class="btn btn-sm" title="Уменьшить">−</button>
+            <button type="button" id="btn-zoom-in" class="btn btn-sm" title="Увеличить">+</button>
+            <button type="button" id="btn-zoom-reset" class="btn btn-sm">Сброс вида</button>
+          </div>
+          <div class="preview-canvas-stack">
+            <canvas id="preview"></canvas>
+            <canvas id="preview-overlay"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <div
+        class="splitter splitter-h"
+        id="splitter-preview-editor"
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Изменить высоту превью и редактора"
+        tabindex="0"
+      ></div>
+
+      <section class="panel panel-editor" id="panel-editor">
+        <div class="editor-body">
+          <div class="canvas-wrap editor-wrap">
+            <div class="editor-view-controls">
+              <button type="button" id="btn-download-wall-jpg" class="btn btn-sm btn-accent" disabled>
+                Скачать стену JPG
+              </button>
+            </div>
+            <canvas id="wall-editor"></canvas>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <input type="file" id="overlay-input" accept="image/*" hidden>
+
+  <div id="project-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog" role="dialog" aria-labelledby="project-modal-heading">
+      <div class="modal-header">
+        <h3 id="project-modal-heading" class="modal-title">Проекты</h3>
+        <button type="button" id="btn-project-modal-close" class="modal-close" aria-label="Закрыть">×</button>
+      </div>
+      <ul class="modal-list" id="project-modal-list"></ul>
+      <div class="modal-footer">
+        <button type="button" id="btn-add-project" class="btn">+ Проект</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-delete-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-confirm-delete-cancel></div>
+    <div class="modal-dialog modal-dialog-sm" role="dialog" aria-labelledby="confirm-delete-title" aria-modal="true">
+      <div class="modal-header">
+        <h3 id="confirm-delete-title" class="modal-title"></h3>
+        <button type="button" id="btn-confirm-delete-close" class="modal-close" aria-label="Закрыть">×</button>
+      </div>
+      <p class="modal-message" id="confirm-delete-message"></p>
+      <div class="modal-footer">
+        <button type="button" id="btn-confirm-delete-cancel" class="btn">Отмена</button>
+        <button type="button" id="btn-confirm-delete-confirm" class="btn btn-danger">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="room-delete-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-room-delete-cancel></div>
+    <div class="modal-dialog modal-dialog-sm" role="dialog" aria-labelledby="room-delete-title" aria-modal="true">
+      <div class="modal-header">
+        <h3 id="room-delete-title" class="modal-title">Удалить комнату?</h3>
+        <button type="button" id="btn-room-delete-close" class="modal-close" aria-label="Закрыть">×</button>
+      </div>
+      <p class="modal-message" id="room-delete-message"></p>
+      <div class="modal-footer">
+        <button type="button" id="btn-room-delete-cancel" class="btn">Отмена</button>
+        <button type="button" id="btn-room-delete-confirm" class="btn btn-danger">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
