@@ -262,7 +262,7 @@ export function createWallList(opts) {
           curveSelect.append(optOff, optEdge, optVertex);
 
           const boundary = getWallBoundary(wall.id);
-          curveSelect.value = boundary ? getBoundaryMode(boundary) : BOUNDARY_MODE_EDGE;
+          curveSelect.value = boundary ? getBoundaryMode(boundary) : BOUNDARY_MODE_OFF;
           curveSelect.addEventListener('click', (e) => e.stopPropagation());
           curveSelect.addEventListener('change', (e) => {
             e.stopPropagation();
@@ -311,7 +311,7 @@ export function createWallList(opts) {
           )
           .join(',');
         const b = getWallBoundary(w.id);
-        const mode = b ? getBoundaryMode(b) : BOUNDARY_MODE_EDGE;
+        const mode = b ? getBoundaryMode(b) : BOUNDARY_MODE_OFF;
         return `${w.id}:${w.name}:${w.color ?? ''}:${mode}:${w.widthM}:${w.heightM}:${isEnabledOnPhoto(w.id)}:${w.id === activeId}:${items}`;
       })
       .join('|');

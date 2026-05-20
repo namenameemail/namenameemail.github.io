@@ -180,7 +180,7 @@ export function setWallCorners(photo, wallId, corners) {
     return;
   }
   setWallBoundary(photo, wallId, {
-    mode: 'edge',
+    mode: 'off',
     corners,
     edges: straightEdgesFromCorners(corners),
   });

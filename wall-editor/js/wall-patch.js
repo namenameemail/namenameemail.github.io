@@ -275,7 +275,7 @@ export function normalizeWallBoundary(raw) {
 
   if (Array.isArray(raw) && raw.length === 4) {
     const corners = raw.map(normPoint);
-    const mode = BOUNDARY_MODE_EDGE;
+    const mode = BOUNDARY_MODE_OFF;
     const { edges, handleOut, handleIn } = resolveStoredCurveData(corners, {});
     return { mode, corners, edges, handleOut, handleIn };
   }
@@ -289,7 +289,9 @@ export function normalizeWallBoundary(raw) {
       ? BOUNDARY_MODE_OFF
       : o.mode === BOUNDARY_MODE_VERTEX
         ? BOUNDARY_MODE_VERTEX
-        : BOUNDARY_MODE_EDGE;
+        : o.mode === BOUNDARY_MODE_EDGE
+          ? BOUNDARY_MODE_EDGE
+          : BOUNDARY_MODE_OFF;
   const { edges, handleOut, handleIn } = resolveStoredCurveData(corners, o);
   return { mode, corners, edges, handleOut, handleIn };
 }
@@ -443,7 +445,7 @@ export function defaultWallBoundary(index) {
   ];
   const edges = straightEdgesFromCorners(corners);
   const { handleOut, handleIn } = straightVertexHandlesFromCorners(corners);
-  return { mode: BOUNDARY_MODE_EDGE, corners, edges, handleOut, handleIn };
+  return { mode: BOUNDARY_MODE_OFF, corners, edges, handleOut, handleIn };
 }
 
 /**

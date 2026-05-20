@@ -29,6 +29,50 @@ function isImageFile(file) {
  * @param {DataTransfer|null} dt
  * @returns {File[]}
  */
+/**
+ * @param {File} file
+ */
+export function isRvzFile(file) {
+  const name = file.name.toLowerCase();
+  return (
+    name.endsWith('.rvz') ||
+    file.type === 'application/json' ||
+    (file.type === '' && name.endsWith('.json'))
+  );
+}
+
+/**
+ * @param {DataTransfer|null} dt
+ * @returns {File[]}
+ */
+export function rvzFilesFromDataTransfer(dt) {
+  if (!dt) return [];
+  const out = [];
+  const seen = new Set();
+  if (dt.items?.length) {
+    for (const item of dt.items) {
+      if (item.kind !== 'file') continue;
+      const f = item.getAsFile();
+      if (!f || !isRvzFile(f)) continue;
+      const key = `${f.name}:${f.size}:${f.lastModified}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(f);
+    }
+    if (out.length) return out;
+  }
+  if (dt.files?.length) {
+    for (const f of dt.files) {
+      if (!isRvzFile(f)) continue;
+      const key = `${f.name}:${f.size}:${f.lastModified}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(f);
+    }
+  }
+  return out;
+}
+
 export function imageFilesFromDataTransfer(dt) {
   if (!dt) return [];
   const out = [];
@@ -65,11 +109,17 @@ export function imageFilesFromDataTransfer(dt) {
  * @param {(files: File[], dropTarget: HTMLElement) => void|Promise<void>} opts.onFiles
  * @param {() => boolean} [opts.canAccept]
  * @param {(e: DragEvent) => HTMLElement|null} [opts.getDropTarget]
+ * @param {(dt: DataTransfer|null) => File[]} [opts.extractFiles]
  */
 export function bindFileDropZone(host, opts) {
   if (!host) return;
 
-  const { onFiles, canAccept = () => true, getDropTarget } = opts;
+  const {
+    onFiles,
+    canAccept = () => true,
+    getDropTarget,
+    extractFiles = imageFilesFromDataTransfer,
+  } = opts;
 
   /** @type {HTMLElement|null} */
   let highlightEl = null;
@@ -145,7 +195,7 @@ export function bindFileDropZone(host, opts) {
       e.preventDefault();
       e.stopPropagation();
       clearHighlight();
-      const files = imageFilesFromDataTransfer(e.dataTransfer);
+      const files = extractFiles(e.dataTransfer);
       if (!files.length || !canAccept()) return;
       await onFiles(files, target);
     },

@@ -39,7 +39,7 @@ import {
   setWallEnabledOnPhoto,
   wallsWithPhotoCorners,
 } from './state.js';
-import { bindFileDropZone } from './file-drop.js';
+import { bindFileDropZone, FILE_DROP_OVER_CLASS, isRvzFile, rvzFilesFromDataTransfer } from './file-drop.js';
 import {
   bindListReorder,
   reorderArrayById,
@@ -96,6 +96,9 @@ const btnDownloadJpg = document.getElementById('btn-download-jpg');
 const btnDownloadWallJpg = document.getElementById('btn-download-wall-jpg');
 const btnExportRvz = document.getElementById('btn-export-rvz');
 const importRvzInput = document.getElementById('import-rvz-input');
+const btnImportRvz = document.getElementById('btn-import-rvz');
+const projectModalDialog = document.getElementById('project-modal-dialog');
+const projectModalDropHint = document.getElementById('project-modal-drop-hint');
 const btnZoomIn = document.getElementById('btn-zoom-in');
 const btnZoomOut = document.getElementById('btn-zoom-out');
 const btnZoomReset = document.getElementById('btn-zoom-reset');
@@ -383,6 +386,21 @@ function exportProjectRvz() {
   const json = serializeProjectFile(project);
   downloadTextFile(projectFileName(project.name), json);
   setStatus(`Проект «${project.name}» экспортирован`);
+}
+
+async function importProjectsFromFiles(files) {
+  const file = files.find((f) => isRvzFile(f));
+  if (!file) {
+    setStatus('Нужен файл проекта (.rvz)');
+    return;
+  }
+  try {
+    await importProjectRvz(file);
+    scheduleSave();
+  } catch (err) {
+    console.warn('import rvz failed', err);
+    setStatus(err instanceof Error ? err.message : 'Ошибка импорта файла');
+  }
 }
 
 async function importProjectRvz(file) {
@@ -1211,12 +1229,42 @@ const projectModal = createProjectModal({
   pickerBtn: btnOpenProjects,
   addBtn: btnAddProject,
   closeBtn: btnProjectModalClose,
+  dialogEl: projectModalDialog,
+  importBtn: btnImportRvz,
+  importInput: importRvzInput,
+  dropHintEl: projectModalDropHint,
+  onImportFiles: importProjectsFromFiles,
   getState: () => appState,
   onSelect: (id) => switchProject(id),
   onAdd: addProject,
   onDelete: requestDeleteProject,
   canDelete: () => appState.projects.length > 1,
 });
+
+if (projectModalDialog) {
+  bindFileDropZone(projectModalDialog, {
+    canAccept: () => true,
+    extractFiles: rvzFilesFromDataTransfer,
+    onFiles: importProjectsFromFiles,
+  });
+  projectModalDialog.addEventListener('dragover', () => {
+    if (projectModalDropHint && projectModalDialog.classList.contains(FILE_DROP_OVER_CLASS)) {
+      projectModalDropHint.hidden = false;
+    }
+  });
+  projectModalDialog.addEventListener('dragleave', (e) => {
+    if (!projectModalDropHint) return;
+    const related = /** @type {Node|null} */ (e.relatedTarget);
+    if (related && projectModalDialog.contains(related)) return;
+    projectModalDropHint.hidden = true;
+  });
+  projectModalDialog.addEventListener('drop', () => {
+    if (projectModalDropHint) projectModalDropHint.hidden = true;
+  });
+  document.addEventListener('dragend', () => {
+    if (projectModalDropHint) projectModalDropHint.hidden = true;
+  });
+}
 
 function onWallDimChange(wallId, field, value, save) {
   const { room } = ctx();
@@ -1440,20 +1488,6 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (confirmDeleteModal && !confirmDeleteModal.hidden) closeConfirmDeleteModal();
   else if (roomDeleteModal && !roomDeleteModal.hidden) closeRoomDeleteModal();
-});
-
-importRvzInput.addEventListener('change', async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  try {
-    await importProjectRvz(file);
-    scheduleSave();
-  } catch (err) {
-    console.warn('import rvz failed', err);
-    setStatus(err instanceof Error ? err.message : 'Ошибка импорта файла');
-  }
-  e.target.value = '';
 });
 
 btnDownloadJpg.addEventListener('click', async () => {

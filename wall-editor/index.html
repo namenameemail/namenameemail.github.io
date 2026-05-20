@@ -8,6 +8,20 @@
 </head>
 <body>
   <header class="toolbar">
+    <button
+      type="button"
+      id="btn-open-projects"
+      class="btn btn-icon btn-project-picker"
+      title="Проекты"
+      aria-label="Проекты"
+      aria-haspopup="dialog"
+      aria-expanded="false"
+    >
+      <svg class="btn-icon-svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+        <path d="M3 2.5h5.5L12 6v7.5H3V2.5z" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <path d="M8.5 2.5V6H12" fill="none" stroke="currentColor" stroke-width="1.25"/>
+      </svg>
+    </button>
     <div class="toolbar-project-group">
       <button
         type="button"
@@ -16,21 +30,21 @@
         title="Двойной клик — переименовать проект"
         disabled
       ></button>
-      <button
-        type="button"
-        id="btn-open-projects"
-        class="btn btn-project-picker"
-        aria-haspopup="dialog"
-        aria-expanded="false"
-      >
-        проекты
-      </button>
     </div>
-    <button type="button" id="btn-export-rvz" class="btn" disabled>Экспорт</button>
-    <label class="btn">
-      Импорт
-      <input type="file" id="import-rvz-input" accept=".rvz,application/json" hidden>
-    </label>
+    <button
+      type="button"
+      id="btn-export-rvz"
+      class="btn btn-icon"
+      title="Экспорт проекта"
+      aria-label="Экспорт проекта"
+      disabled
+    >
+      <svg class="btn-icon-svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+        <path d="M8 2.5v7" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+        <path d="M5.5 7 8 9.5 10.5 7" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M3.5 12.5h9" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+      </svg>
+    </button>
   </header>
 
   <nav class="room-tabs-bar" id="room-tabs-bar" aria-label="Комнаты" hidden>
@@ -117,13 +131,21 @@
 
   <div id="project-modal" class="modal" hidden>
     <div class="modal-backdrop" data-modal-close></div>
-    <div class="modal-dialog" role="dialog" aria-labelledby="project-modal-heading">
+    <div
+      id="project-modal-dialog"
+      class="modal-dialog modal-dialog-projects"
+      role="dialog"
+      aria-labelledby="project-modal-heading"
+    >
       <div class="modal-header">
         <h3 id="project-modal-heading" class="modal-title">Проекты</h3>
         <button type="button" id="btn-project-modal-close" class="modal-close" aria-label="Закрыть">×</button>
       </div>
+      <p class="modal-import-hint" id="project-modal-drop-hint" hidden>Перетащите файл .rvz сюда</p>
       <ul class="modal-list" id="project-modal-list"></ul>
       <div class="modal-footer">
+        <button type="button" id="btn-import-rvz" class="btn">Импорт</button>
+        <input type="file" id="import-rvz-input" accept=".rvz,application/json" hidden>
         <button type="button" id="btn-add-project" class="btn">+ Проект</button>
       </div>
     </div>

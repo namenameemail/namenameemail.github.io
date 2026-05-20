@@ -9,6 +9,11 @@
  * @param {HTMLElement} opts.pickerBtn
  * @param {HTMLElement} opts.addBtn
  * @param {HTMLElement} opts.closeBtn
+ * @param {HTMLElement} [opts.dialogEl]
+ * @param {HTMLElement} [opts.importBtn]
+ * @param {HTMLElement} [opts.importInput]
+ * @param {HTMLElement} [opts.dropHintEl]
+ * @param {(files: File[]) => void|Promise<void>} [opts.onImportFiles]
  * @param {() => import('./state.js').AppState} opts.getState
  * @param {(projectId: string) => void} opts.onSelect
  * @param {() => void} opts.onAdd
@@ -22,6 +27,11 @@ export function createProjectModal(opts) {
     pickerBtn,
     addBtn,
     closeBtn,
+    dialogEl,
+    importBtn,
+    importInput,
+    dropHintEl,
+    onImportFiles,
     getState,
     onSelect,
     onAdd,
@@ -30,8 +40,6 @@ export function createProjectModal(opts) {
   } = opts;
 
   let listKey = '';
-
-  pickerBtn.textContent = 'проекты';
 
   function isOpen() {
     return !root.hidden;
@@ -137,6 +145,16 @@ export function createProjectModal(opts) {
     onAdd();
     render();
   });
+
+  if (importBtn && importInput) {
+    importBtn.addEventListener('click', () => importInput.click());
+    importInput.addEventListener('change', async () => {
+      const files = [...(importInput.files || [])];
+      importInput.value = '';
+      if (!files.length || !onImportFiles) return;
+      await onImportFiles(files);
+    });
+  }
 
   root.querySelectorAll('[data-modal-close]').forEach((el) => {
     el.addEventListener('click', close);

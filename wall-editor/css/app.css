@@ -147,9 +147,22 @@ button,
   font: 600 12px inherit;
 }
 
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--input-h);
+  min-width: var(--input-h);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn-icon-svg {
+  display: block;
+}
+
 .toolbar-project-group .btn-project-picker {
   flex-shrink: 0;
-  min-width: 5.5rem;
 }
 
 .btn-sm {
@@ -353,6 +366,25 @@ button,
 
 .modal-footer .btn {
   flex: 1;
+}
+
+.modal-dialog-projects.file-drop-over {
+  outline: 2px dashed var(--text);
+  outline-offset: -3px;
+}
+
+.modal-import-hint {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-hover);
+}
+
+.modal-import-hint[hidden] {
+  display: none;
 }
 
 /* —— Layout —— */
