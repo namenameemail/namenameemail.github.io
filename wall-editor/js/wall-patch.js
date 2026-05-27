@@ -27,19 +27,22 @@ export const BOUNDARY_MODE_VERTEX = 'vertex';
 const GRID = 14;
 
 /**
- * @param {number} v
+ * @param {unknown} v
+ * @returns {number}
  */
-function clamp01(v) {
-  return Math.max(0, Math.min(1, v));
+function numCoord(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
 /**
+ * Normalized image coords (0–1 = photo bounds; may extend outside).
  * @param {unknown} p
  * @returns {PointNorm}
  */
 function normPoint(p) {
   const o = /** @type {{x?:number,y?:number}} */ (p);
-  return { x: clamp01(Number(o?.x) || 0), y: clamp01(Number(o?.y) || 0) };
+  return { x: numCoord(o?.x), y: numCoord(o?.y) };
 }
 
 /**
@@ -137,7 +140,7 @@ function resolveStoredCurveData(corners, raw = {}) {
 export function withCurveData(boundary) {
   const corners = boundary.corners.map((p) => ({ ...p }));
   const { edges, handleOut, handleIn } = resolveStoredCurveData(corners, boundary);
-  const mode = getBoundaryMode(/** @type {WallBoundary} */ (boundary));
+  const mode = getBoundaryMode(/** @type {WallBoundary} */(boundary));
   return { mode, corners, edges, handleOut, handleIn };
 }
 

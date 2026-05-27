@@ -39,6 +39,7 @@ import {
   setWallEnabledOnPhoto,
   wallsWithPhotoCorners,
 } from './state.js';
+import { bindClipboardImagePaste } from './clipboard-paste.js';
 import { bindFileDropZone, FILE_DROP_OVER_CLASS, isRvzFile, rvzFilesFromDataTransfer } from './file-drop.js';
 import {
   bindListReorder,
@@ -1431,6 +1432,17 @@ bindListReorder(wallListEl, {
     if (!wallId) return;
     reorderWallItems(wallId, itemId, targetItemId, placeAfter);
   },
+});
+
+bindClipboardImagePaste({
+  photoListEl,
+  wallListEl,
+  onPastePhotos: async (files) => {
+    await ensureProjectRoomForPhotos();
+    await addPhotosFromFiles(files);
+  },
+  onPasteWallItems: (wallId, files) => addItemsFromFiles(files, wallId),
+  canPasteWallItems: () => !!ctx().photo,
 });
 
 btnAddWall.addEventListener('click', addWall);
