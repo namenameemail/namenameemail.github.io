@@ -1,0 +1,10 @@
+{
+  "name": "QR Drop",
+  "short_name": "QR Drop",
+  "description": "Serverless P2P передача файлов через QR",
+  "start_url": "/qr-drop/",
+  "display": "standalone",
+  "background_color": "#0f1419",
+  "theme_color": "#0f1419",
+  "lang": "ru"
+}
