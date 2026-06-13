@@ -1,7 +1,13 @@
 import { Html5Qrcode } from 'html5-qrcode';
+import { log, warn } from '../debug';
 
 export type QrScanResult = {
   data: string;
+};
+
+const SCANNER_CONFIG = {
+  fps: 10,
+  qrbox: { width: 250, height: 250 },
 };
 
 export class QrScanner {
@@ -13,27 +19,58 @@ export class QrScanner {
     this.containerId = containerId;
   }
 
-  async start(onResult: (result: QrScanResult) => void): Promise<void> {
+  /** Returns false when no camera is available (paste-only fallback). */
+  async start(onResult: (result: QrScanResult) => void): Promise<boolean> {
     if (this.active) {
-      return;
+      return true;
     }
 
     this.scanner = new Html5Qrcode(this.containerId);
-    this.active = true;
 
-    await this.scanner.start(
+    const configs: Array<string | MediaTrackConstraints> = [
       { facingMode: 'environment' },
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-      },
-      (decoded) => {
-        onResult({ data: decoded });
-      },
-      () => {
-        // scan errors are expected while searching
-      },
-    );
+      { facingMode: 'user' },
+    ];
+
+    try {
+      const cameras = await Html5Qrcode.getCameras();
+      for (const camera of cameras) {
+        configs.push(camera.id);
+      }
+      log('qr scanner: cameras found', { count: cameras.length });
+    } catch (error) {
+      warn('qr scanner: could not list cameras', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    for (const config of configs) {
+      try {
+        await this.scanner.start(
+          config,
+          SCANNER_CONFIG,
+          (decoded) => {
+            onResult({ data: decoded });
+          },
+          () => {
+            // scan errors are expected while searching
+          },
+        );
+        this.active = true;
+        log('qr scanner: started', {
+          config: typeof config === 'string' ? config : JSON.stringify(config),
+        });
+        return true;
+      } catch (error) {
+        warn('qr scanner: camera config failed', {
+          config: typeof config === 'string' ? config : JSON.stringify(config),
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    this.scanner = null;
+    return false;
   }
 
   async stop(): Promise<void> {

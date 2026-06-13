@@ -69,6 +69,10 @@ body {
   margin: 0 0 16px;
 }
 
+.hint-emphasis {
+  color: #e7c87a;
+}
+
 .hidden {
   display: none !important;
 }

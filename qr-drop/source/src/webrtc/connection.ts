@@ -10,6 +10,8 @@ import {
 
 export const ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun.cloudflare.com:3478' },
   {
     urls: [
       'turn:openrelay.metered.ca:80',
@@ -28,7 +30,7 @@ export type PeerConnectionBundle = {
   channel: RTCDataChannel;
 };
 
-const ICE_GATHER_TIMEOUT_MS = 15_000;
+const ICE_GATHER_TIMEOUT_MS = 20_000;
 
 export function waitForIceGathering(
   pc: RTCPeerConnection,

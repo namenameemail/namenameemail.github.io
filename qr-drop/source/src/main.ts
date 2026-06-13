@@ -96,9 +96,21 @@ async function startSession(): Promise<void> {
 
     createScannerContainer(scannerMount as HTMLElement, 'host-scanner');
     scanner = new QrScanner('host-scanner');
-    await scanner.start((scan) => {
+    const scannerReady = await scanner.start((scan) => {
       void handleAnswer(scan.data, setState);
     });
+
+    const answerHint = answerSection.querySelector('.hint');
+    if (!scannerReady) {
+      warn('host page: no camera, using paste-only mode');
+      scannerMount.classList.add('hidden');
+      answerHint?.classList.add('hint-emphasis');
+      if (answerHint) {
+        answerHint.textContent =
+          'Камера недоступна — нажмите «Скопировать answer» на телефоне и вставьте текст ниже.';
+      }
+      scanner = null;
+    }
 
     watchConnectionState(bundle.pc, (state) => {
       log('host page: connection state', {
