@@ -2,8 +2,10 @@ import './style.css';
 import { log, logError, warn } from './debug';
 import {
   createGuestPeer,
+  GUEST_CONNECTION_TIMEOUT_MS,
   waitForChannelOpen,
   watchConnectionState,
+  watchForHostAnswerApplied,
   type PeerConnectionBundle,
 } from './webrtc/connection';
 import {
@@ -86,7 +88,7 @@ async function initGuest(): Promise<void> {
 
     loadingSection.classList.add('hidden');
     answerSection.classList.remove('hidden');
-    setState('waiting-answer', 'Дождитесь, пока ПК примет answer');
+    setState('waiting-host');
 
     await renderQrCodeFromText(
       answerQr,
@@ -106,27 +108,37 @@ async function initGuest(): Promise<void> {
       }
     });
 
+    let hostAnswerApplied = false;
+
+    const stopIceWatch = watchForHostAnswerApplied(bundle.pc, () => {
+      hostAnswerApplied = true;
+      setState('connecting', 'ПК принял answer, устанавливаем соединение…');
+    });
+
     watchConnectionState(bundle.pc, (state) => {
       log('guest page: connection state', {
         state,
+        hostAnswerApplied,
         iceConnectionState: bundle!.pc.iceConnectionState,
         signalingState: bundle!.pc.signalingState,
       });
-      if (state === 'connecting') {
-        setState('connecting');
-      } else if (state === 'connected') {
+      if (state === 'connected') {
         setState('connected');
-      } else if (state === 'failed') {
-        warn('guest page: connection failed', {
+      } else if (state === 'failed' && hostAnswerApplied) {
+        warn('guest page: connection failed after host answer', {
           iceConnectionState: bundle!.pc.iceConnectionState,
           iceGatheringState: bundle!.pc.iceGatheringState,
         });
-        setState('failed', 'Проверьте интернет или попробуйте снова');
+        setState(
+          'failed',
+          'Разные сети без TURN — попробуйте одну Wi‑Fi или вставьте answer на ПК ещё раз',
+        );
       }
     });
 
-    void waitForChannelOpen(bundle.channel, 'guest')
+    void waitForChannelOpen(bundle.channel, 'guest', GUEST_CONNECTION_TIMEOUT_MS)
       .then(() => {
+        stopIceWatch();
         log('guest page: datachannel open, showing transfer panel');
         answerSection.classList.add('hidden');
         setState('connected');
@@ -137,11 +149,30 @@ async function initGuest(): Promise<void> {
         showTransferPanel(transferPanel);
       })
       .catch((error) => {
-        log('guest page: datachannel still pending or failed', {
-          message: error instanceof Error ? error.message : String(error),
+        stopIceWatch();
+        logError('guest page: connection timed out or failed', error, {
+          hostAnswerApplied,
           channelState: bundle?.channel.readyState,
           connectionState: bundle?.pc.connectionState,
+          iceConnectionState: bundle?.pc.iceConnectionState,
         });
+        if (!hostAnswerApplied) {
+          setState(
+            'failed',
+            'ПК ещё не принял answer — нажмите «Скопировать» и вставьте текст на компьютере',
+          );
+        } else {
+          setState(
+            'failed',
+            'Соединение не установилось — попробуйте одну Wi‑Fi сеть',
+          );
+        }
+        showError(
+          app,
+          hostAnswerApplied
+            ? 'ICE не пробился. Подключите оба устройства к одной Wi‑Fi или проверьте VPN.'
+            : 'На компьютере нажмите «Применить answer» после вставки текста с телефона.',
+        );
       });
   } catch (error) {
     logError('guest page: init failed', error);

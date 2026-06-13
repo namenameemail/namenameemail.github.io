@@ -12,11 +12,13 @@ export const ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun.cloudflare.com:3478' },
+  { urls: 'stun:stun.relay.metered.ca:80' },
   {
     urls: [
       'turn:openrelay.metered.ca:80',
       'turn:openrelay.metered.ca:443',
       'turn:openrelay.metered.ca:443?transport=tcp',
+      'turns:openrelay.metered.ca:443',
     ],
     username: 'openrelayproject',
     credential: 'openrelayproject',
@@ -30,7 +32,8 @@ export type PeerConnectionBundle = {
   channel: RTCDataChannel;
 };
 
-const ICE_GATHER_TIMEOUT_MS = 20_000;
+const ICE_GATHER_TIMEOUT_MS = 25_000;
+const GUEST_CONNECTION_TIMEOUT_MS = 120_000;
 
 export function waitForIceGathering(
   pc: RTCPeerConnection,
@@ -76,15 +79,21 @@ export function waitForIceGathering(
 export function waitForChannelOpen(
   channel: RTCDataChannel,
   role: 'host' | 'guest',
+  timeoutMs?: number,
 ): Promise<void> {
   if (channel.readyState === 'open') {
     log(`datachannel ${role}: already open`);
     return Promise.resolve();
   }
 
-  log(`datachannel ${role}: waiting for open`, { readyState: channel.readyState });
+  log(`datachannel ${role}: waiting for open`, {
+    readyState: channel.readyState,
+    timeoutMs,
+  });
 
   return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     const onOpen = () => {
       cleanup();
       log(`datachannel ${role}: opened`);
@@ -105,16 +114,28 @@ export function waitForChannelOpen(
     };
 
     const cleanup = () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
       channel.removeEventListener('open', onOpen);
       channel.removeEventListener('error', onError);
       channel.removeEventListener('close', onClose);
     };
+
+    if (timeoutMs) {
+      timer = setTimeout(() => {
+        cleanup();
+        reject(new Error(`Data channel open timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+    }
 
     channel.addEventListener('open', onOpen);
     channel.addEventListener('error', onError);
     channel.addEventListener('close', onClose);
   });
 }
+
+export { GUEST_CONNECTION_TIMEOUT_MS };
 
 export async function createHostPeer(): Promise<{
   bundle: PeerConnectionBundle;
@@ -124,7 +145,7 @@ export async function createHostPeer(): Promise<{
 
   const pc = new RTCPeerConnection({
     iceServers: ICE_SERVERS,
-    iceCandidatePoolSize: 0,
+    iceCandidatePoolSize: 4,
   });
   attachPeerConnectionDebug(pc, 'host');
 
@@ -166,11 +187,11 @@ export async function createGuestPeer(offer: RTCSessionDescriptionInit): Promise
 
   const pc = new RTCPeerConnection({
     iceServers: ICE_SERVERS,
-    iceCandidatePoolSize: 0,
+    iceCandidatePoolSize: 4,
   });
   attachPeerConnectionDebug(pc, 'guest');
 
-  const channelPromise = new Promise<RTCDataChannel>((resolve, reject) => {
+  const channelPromise = new Promise<RTCDataChannel>((resolve) => {
     pc.ondatachannel = (event) => {
       log('guest: datachannel received', {
         label: event.channel.label,
@@ -178,16 +199,6 @@ export async function createGuestPeer(offer: RTCSessionDescriptionInit): Promise
       });
       attachDataChannelDebug(event.channel, 'guest');
       resolve(event.channel);
-    };
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed') {
-        warn('guest: connection failed before datachannel ready', {
-          connectionState: pc.connectionState,
-          iceConnectionState: pc.iceConnectionState,
-          signalingState: pc.signalingState,
-        });
-        reject(new Error('WebRTC connection failed'));
-      }
     };
   });
 
@@ -265,4 +276,43 @@ export function watchConnectionState(
   pc.addEventListener('connectionstatechange', handler);
   handler();
   return () => pc.removeEventListener('connectionstatechange', handler);
+}
+
+/** Fires once ICE negotiation likely started after the host applied the answer. */
+export function watchForHostAnswerApplied(
+  pc: RTCPeerConnection,
+  onApplied: () => void,
+): () => void {
+  let notified = false;
+
+  const notify = () => {
+    if (notified) {
+      return;
+    }
+    notified = true;
+    log('guest: host answer likely applied', {
+      connectionState: pc.connectionState,
+      iceConnectionState: pc.iceConnectionState,
+    });
+    onApplied();
+  };
+
+  const handler = () => {
+    if (
+      pc.connectionState === 'connecting' ||
+      pc.connectionState === 'connected' ||
+      pc.iceConnectionState === 'connected' ||
+      pc.iceConnectionState === 'completed'
+    ) {
+      notify();
+    }
+  };
+
+  pc.addEventListener('connectionstatechange', handler);
+  pc.addEventListener('iceconnectionstatechange', handler);
+
+  return () => {
+    pc.removeEventListener('connectionstatechange', handler);
+    pc.removeEventListener('iceconnectionstatechange', handler);
+  };
 }

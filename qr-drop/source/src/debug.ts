@@ -37,12 +37,14 @@ export function summarizeSdp(desc: RTCSessionDescriptionInit | null | undefined)
   const sdp = desc.sdp ?? '';
   const candidates = sdp.match(/^a=candidate:/gm) ?? [];
   const relayCandidates = candidates.filter((line) => line.includes(' typ relay '));
+  const srflxCandidates = candidates.filter((line) => line.includes(' typ srflx '));
 
   return {
     type: desc.type,
     sdpLength: sdp.length,
     candidateCount: candidates.length,
     relayCandidateCount: relayCandidates.length,
+    srflxCandidateCount: srflxCandidates.length,
     hasIceUfrag: /a=ice-ufrag:/.test(sdp),
     hasIcePwd: /a=ice-pwd:/.test(sdp),
   };

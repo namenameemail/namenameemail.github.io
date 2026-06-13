@@ -4,6 +4,7 @@ const STATE_LABELS: Record<ConnectionState, string> = {
   idle: 'Готов к подключению',
   gathering: 'Сбор ICE-кандидатов…',
   'waiting-answer': 'Отсканируйте QR на телефоне, затем покажите answer QR на ПК',
+  'waiting-host': 'Покажите QR на ПК или вставьте answer — ждём подтверждения',
   connecting: 'Установка соединения…',
   connected: 'Соединено — можно передавать файлы',
   failed: 'Не удалось установить соединение',

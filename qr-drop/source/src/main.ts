@@ -1,5 +1,5 @@
 import './style.css';
-import { log, logError, warn } from './debug';
+import { log, logError, summarizeSdp, warn } from './debug';
 import {
   applyAnswer,
   createHostPeer,
@@ -86,6 +86,15 @@ async function startSession(): Promise<void> {
     const encodedOffer = encodeSessionDescription(result.offer);
     const joinUrl = buildJoinUrl(encodedOffer);
     log('host page: join url ready', { joinUrlLength: joinUrl.length });
+
+    const offerSummary = summarizeSdp(result.offer);
+    if (offerSummary.relayCandidateCount === 0) {
+      warn('host page: no TURN relay candidates in offer', offerSummary);
+      showError(
+        app,
+        'TURN недоступен — соединение возможно только в одной Wi‑Fi. Answer можно вставить текстом.',
+      );
+    }
 
     await renderQrCode(offerQr, joinUrl, 'Ссылка для телефона');
 

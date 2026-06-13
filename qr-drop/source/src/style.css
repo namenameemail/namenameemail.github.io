@@ -137,6 +137,7 @@ body {
 
 .status-gathering,
 .status-waiting-answer,
+.status-waiting-host,
 .status-connecting {
   background: #1a2740;
   border: 1px solid #3b5998;

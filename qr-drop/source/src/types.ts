@@ -7,6 +7,7 @@ export type ConnectionState =
   | 'idle'
   | 'gathering'
   | 'waiting-answer'
+  | 'waiting-host'
   | 'connecting'
   | 'connected'
   | 'failed';
