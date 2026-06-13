@@ -16,6 +16,7 @@ import { renderQrCode } from './ui/qr-display';
 import { createScannerContainer, QrScanner } from './ui/qr-scanner';
 import { createFileTransferPanel, showTransferPanel } from './ui/file-transfer-ui';
 import { createStatusBar, showError } from './ui/status';
+import { APP_VERSION } from './version';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -27,6 +28,7 @@ function renderShell(): void {
   app.innerHTML = `
     <main class="page">
       <header class="hero">
+        <p class="version">v${APP_VERSION}</p>
         <h1>QR Drop</h1>
         <p class="subtitle">Serverless P2P передача файлов через QR</p>
       </header>

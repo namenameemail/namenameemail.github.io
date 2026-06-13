@@ -27,6 +27,13 @@ body {
   margin-bottom: 24px;
 }
 
+.version {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  color: #6b7a8f;
+  letter-spacing: 0.06em;
+}
+
 .hero h1 {
   margin: 0 0 8px;
   font-size: 2rem;
