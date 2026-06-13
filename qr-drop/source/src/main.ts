@@ -1,4 +1,5 @@
 import './style.css';
+import { log, logError, warn } from './debug';
 import {
   applyAnswer,
   createHostPeer,
@@ -74,6 +75,7 @@ async function startSession(): Promise<void> {
 
   createBtn.disabled = true;
   setState('gathering');
+  log('host page: starting session');
 
   try {
     const result = await createHostPeer();
@@ -81,6 +83,7 @@ async function startSession(): Promise<void> {
 
     const encodedOffer = encodeSessionDescription(result.offer);
     const joinUrl = buildJoinUrl(encodedOffer);
+    log('host page: join url ready', { joinUrlLength: joinUrl.length });
 
     await renderQrCode(offerQr, joinUrl, 'Ссылка для телефона');
 
@@ -96,9 +99,18 @@ async function startSession(): Promise<void> {
     });
 
     watchConnectionState(bundle.pc, (state) => {
+      log('host page: connection state', {
+        state,
+        iceConnectionState: bundle!.pc.iceConnectionState,
+        signalingState: bundle!.pc.signalingState,
+      });
       if (state === 'connected') {
         setState('connected');
       } else if (state === 'failed') {
+        warn('host page: connection failed', {
+          iceConnectionState: bundle!.pc.iceConnectionState,
+          iceGatheringState: bundle!.pc.iceGatheringState,
+        });
         setState('failed', 'Попробуйте одну Wi‑Fi сеть или повторите сессию');
       } else if (state === 'connecting') {
         setState('connecting');
@@ -109,6 +121,7 @@ async function startSession(): Promise<void> {
       void handleAnswer(pasteInput.value, setState);
     });
   } catch (error) {
+    logError('host page: session creation failed', error);
     createBtn.disabled = false;
     setState('failed');
     showError(
@@ -127,6 +140,7 @@ async function handleAnswer(
   }
 
   try {
+    log('host page: parsing answer input', { inputLength: raw.trim().length });
     const answer = parseAnswerInput(raw);
     if (answer.type !== 'answer') {
       throw new Error('Ожидался answer, получен другой тип');
@@ -136,7 +150,7 @@ async function handleAnswer(
     setState('connecting');
 
     await applyAnswer(bundle.pc, answer);
-    await waitForChannelOpen(bundle.channel);
+    await waitForChannelOpen(bundle.channel, 'host');
 
     if (scanner) {
       await scanner.stop();
@@ -150,7 +164,13 @@ async function handleAnswer(
     const { element: transferPanel } = createFileTransferPanel(bundle.channel);
     transferMount.appendChild(transferPanel);
     showTransferPanel(transferPanel);
+    log('host page: connected, transfer panel shown');
   } catch (error) {
+    logError('host page: failed to apply answer', error, {
+      connectionState: bundle?.pc.connectionState,
+      iceConnectionState: bundle?.pc.iceConnectionState,
+      channelState: bundle?.channel.readyState,
+    });
     answerApplied = false;
     setState('waiting-answer');
     showError(

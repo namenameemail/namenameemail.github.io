@@ -2,6 +2,7 @@ import {
   compressToEncodedURIComponent,
   decompressFromEncodedURIComponent,
 } from 'lz-string';
+import { log, logError, summarizeSdp, warn } from '../debug';
 import type { SessionDescriptionPayload } from '../types';
 
 export function encodeSessionDescription(desc: RTCSessionDescriptionInit): string {
@@ -9,22 +10,50 @@ export function encodeSessionDescription(desc: RTCSessionDescriptionInit): strin
     t: desc.type as 'offer' | 'answer',
     s: desc.sdp ?? '',
   };
-  return compressToEncodedURIComponent(JSON.stringify(payload));
+  const encoded = compressToEncodedURIComponent(JSON.stringify(payload));
+  log('signaling: encoded session', {
+    type: desc.type,
+    encodedLength: encoded.length,
+    ...summarizeSdp(desc),
+  });
+  return encoded;
 }
 
 export function decodeSessionDescription(encoded: string): RTCSessionDescriptionInit {
   const trimmed = encoded.trim();
+  log('signaling: decoding session', {
+    encodedLength: trimmed.length,
+    preview: trimmed.slice(0, 48),
+  });
+
   const json = decompressFromEncodedURIComponent(trimmed);
   if (!json) {
+    warn('signaling: lz-string decompression failed', {
+      encodedLength: trimmed.length,
+      startsWithHash: trimmed.startsWith('#'),
+    });
     throw new Error('Не удалось распознать данные сессии');
   }
 
-  const payload = JSON.parse(json) as SessionDescriptionPayload;
-  if (!payload.t || !payload.s) {
+  let payload: SessionDescriptionPayload;
+  try {
+    payload = JSON.parse(json) as SessionDescriptionPayload;
+  } catch (error) {
+    logError('signaling: JSON parse failed', error, { jsonLength: json.length });
     throw new Error('Некорректный формат сессии');
   }
 
-  return { type: payload.t, sdp: payload.s };
+  if (!payload.t || !payload.s) {
+    warn('signaling: payload missing fields', {
+      hasType: Boolean(payload.t),
+      sdpLength: payload.s?.length ?? 0,
+    });
+    throw new Error('Некорректный формат сессии');
+  }
+
+  const desc = { type: payload.t, sdp: payload.s };
+  log('signaling: decoded session', summarizeSdp(desc));
+  return desc;
 }
 
 export function buildJoinUrl(encodedOffer: string): string {
