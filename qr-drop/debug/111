@@ -1,0 +1,25 @@
+23:39:42.327 version-CVLP08Aw.js:1 [QR Drop] 20:39:42.327 host page: starting session
+23:39:42.328 version-CVLP08Aw.js:1 [QR Drop] 20:39:42.328 host: creating peer connection Object
+23:39:42.330 version-CVLP08Aw.js:1 [QR Drop] 20:39:42.330 peer host: created Object
+23:39:42.330 version-CVLP08Aw.js:1 [QR Drop] 20:39:42.330 datachannel host: created Object
+23:39:42.333 version-CVLP08Aw.js:1 [QR Drop] 20:39:42.333 host: offer created Object
+23:39:42.335 version-CVLP08Aw.js:1 [QR Drop] 20:39:42.335 peer host: signalingstatechange Object
+23:39:42.335 version-CVLP08Aw.js:1 [QR Drop] 20:39:42.335 peer host: icegatheringstatechange Object
+23:39:42.336 version-CVLP08Aw.js:1 [QR Drop] 20:39:42.336 peer host: icecandidate Object
+23:39:42.409 version-CVLP08Aw.js:1 [QR Drop] 20:39:42.409 peer host: icecandidate Object
+23:39:44.340 installHook.js:1 [QR Drop] 20:39:44.338 peer host: icecandidateerror Objectaddress: "172.19.0.x"errorCode: 701errorText: "Failed to establish connection"port: 49828url: "turn:openrelay.metered.ca:443?transport=tcp"[[Prototype]]: Object
+overrideMethod @ installHook.js:1
+23:39:44.346 installHook.js:1 [QR Drop] 20:39:44.345 peer host: icecandidateerror Object
+overrideMethod @ installHook.js:1
+23:39:57.336 installHook.js:1 [QR Drop] 20:39:57.336 ice gathering host: timed out after 15000ms {iceGatheringState: 'gathering', type: 'offer', sdpLength: 718, candidateCount: 2, relayCandidateCount: 0, …}
+overrideMethod @ installHook.js:1
+p @ version-CVLP08Aw.js:1
+i @ version-CVLP08Aw.js:35
+(anonymous) @ version-CVLP08Aw.js:35
+23:39:57.337 version-CVLP08Aw.js:1 [QR Drop] 20:39:57.337 host: offer ready {type: 'offer', sdpLength: 718, candidateCount: 2, relayCandidateCount: 0, hasIceUfrag: true, …}
+23:39:57.340 version-CVLP08Aw.js:1 [QR Drop] 20:39:57.340 signaling: encoded session {type: 'offer', encodedLength: 848, sdpLength: 718, candidateCount: 2, relayCandidateCount: 0, …}
+23:39:57.341 version-CVLP08Aw.js:1 [QR Drop] 20:39:57.341 host page: join url ready {joinUrlLength: 900}
+23:39:57.458 installHook.js:1 [QR Drop] 20:39:57.458 host page: session creation failed {message: 'Error getting userMedia, error = NotFoundError: Requested device not found', stack: undefined}message: "Error getting userMedia, error = NotFoundError: Requested device not found"stack: undefined[[Prototype]]: Object
+overrideMethod @ installHook.js:1
+m @ version-CVLP08Aw.js:1
+ot @ main-1j5HtVgp.js:53
