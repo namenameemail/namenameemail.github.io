@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
 
 importScripts(
-  "/rasterscape-8m/precache-manifest.6a4a33ec044ae846a545c85790f0e92d.js"
+  "/rasterscape-8m/precache-manifest.6e3351269a6b9a5b1ac9a95abec68b19.js"
 );
 
 self.addEventListener('message', (event) => {
