@@ -1,0 +1,27 @@
+{
+  "files": {
+    "main.css": "/rasterscape-6m/static/css/main.ba249e45.chunk.css",
+    "main.js": "/rasterscape-6m/static/js/main.bdd06f00.chunk.js",
+    "main.js.map": "/rasterscape-6m/static/js/main.bdd06f00.chunk.js.map",
+    "runtime-main.js": "/rasterscape-6m/static/js/runtime-main.0d86d621.js",
+    "runtime-main.js.map": "/rasterscape-6m/static/js/runtime-main.0d86d621.js.map",
+    "static/css/2.b3787f0f.chunk.css": "/rasterscape-6m/static/css/2.b3787f0f.chunk.css",
+    "static/js/2.b344120b.chunk.js": "/rasterscape-6m/static/js/2.b344120b.chunk.js",
+    "static/js/2.b344120b.chunk.js.map": "/rasterscape-6m/static/js/2.b344120b.chunk.js.map",
+    "dist/worker.js": "/rasterscape-6m/dist/worker.js",
+    "dist/worker.js.map": "/rasterscape-6m/dist/worker.js.map",
+    "index.html": "/rasterscape-6m/index.html",
+    "precache-manifest.b789d119806d8ec094bae84a21db4091.js": "/rasterscape-6m/precache-manifest.b789d119806d8ec094bae84a21db4091.js",
+    "service-worker.js": "/rasterscape-6m/service-worker.js",
+    "static/css/2.b3787f0f.chunk.css.map": "/rasterscape-6m/static/css/2.b3787f0f.chunk.css.map",
+    "static/css/main.ba249e45.chunk.css.map": "/rasterscape-6m/static/css/main.ba249e45.chunk.css.map",
+    "static/js/2.b344120b.chunk.js.LICENSE.txt": "/rasterscape-6m/static/js/2.b344120b.chunk.js.LICENSE.txt"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.0d86d621.js",
+    "static/css/2.b3787f0f.chunk.css",
+    "static/js/2.b344120b.chunk.js",
+    "static/css/main.ba249e45.chunk.css",
+    "static/js/main.bdd06f00.chunk.js"
+  ]
+}
