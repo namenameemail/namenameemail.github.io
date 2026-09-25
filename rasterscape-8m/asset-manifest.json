@@ -1,0 +1,37 @@
+{
+  "files": {
+    "main.css": "/rasterscape-8m/static/css/main.c56c9b15.chunk.css",
+    "main.js": "/rasterscape-8m/static/js/main.84393732.chunk.js",
+    "main.js.map": "/rasterscape-8m/static/js/main.84393732.chunk.js.map",
+    "runtime-main.js": "/rasterscape-8m/static/js/runtime-main.e1596783.js",
+    "runtime-main.js.map": "/rasterscape-8m/static/js/runtime-main.e1596783.js.map",
+    "static/css/2.4a985797.chunk.css": "/rasterscape-8m/static/css/2.4a985797.chunk.css",
+    "static/js/2.225786f4.chunk.js": "/rasterscape-8m/static/js/2.225786f4.chunk.js",
+    "static/js/2.225786f4.chunk.js.map": "/rasterscape-8m/static/js/2.225786f4.chunk.js.map",
+    "dist/channels.js": "/rasterscape-8m/dist/channels.js",
+    "dist/channels.js.map": "/rasterscape-8m/dist/channels.js.map",
+    "dist/noise.js": "/rasterscape-8m/dist/noise.js",
+    "dist/noise.js.map": "/rasterscape-8m/dist/noise.js.map",
+    "dist/paraboloid.js": "/rasterscape-8m/dist/paraboloid.js",
+    "dist/paraboloid.js.map": "/rasterscape-8m/dist/paraboloid.js.map",
+    "dist/saw.js": "/rasterscape-8m/dist/saw.js",
+    "dist/saw.js.map": "/rasterscape-8m/dist/saw.js.map",
+    "dist/sin.js": "/rasterscape-8m/dist/sin.js",
+    "dist/sin.js.map": "/rasterscape-8m/dist/sin.js.map",
+    "dist/sis2.js": "/rasterscape-8m/dist/sis2.js",
+    "dist/sis2.js.map": "/rasterscape-8m/dist/sis2.js.map",
+    "index.html": "/rasterscape-8m/index.html",
+    "precache-manifest.6a4a33ec044ae846a545c85790f0e92d.js": "/rasterscape-8m/precache-manifest.6a4a33ec044ae846a545c85790f0e92d.js",
+    "service-worker.js": "/rasterscape-8m/service-worker.js",
+    "static/css/2.4a985797.chunk.css.map": "/rasterscape-8m/static/css/2.4a985797.chunk.css.map",
+    "static/css/main.c56c9b15.chunk.css.map": "/rasterscape-8m/static/css/main.c56c9b15.chunk.css.map",
+    "static/js/2.225786f4.chunk.js.LICENSE.txt": "/rasterscape-8m/static/js/2.225786f4.chunk.js.LICENSE.txt"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.e1596783.js",
+    "static/css/2.4a985797.chunk.css",
+    "static/js/2.225786f4.chunk.js",
+    "static/css/main.c56c9b15.chunk.css",
+    "static/js/main.84393732.chunk.js"
+  ]
+}
