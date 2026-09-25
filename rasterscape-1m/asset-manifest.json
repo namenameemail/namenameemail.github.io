@@ -1,0 +1,21 @@
+{
+  "files": {
+    "main.css": "/rasterscape-1m/static/css/main.925b9ddf.chunk.css",
+    "main.js": "/rasterscape-1m/static/js/main.e3f09ded.chunk.js",
+    "main.js.map": "/rasterscape-1m/static/js/main.e3f09ded.chunk.js.map",
+    "runtime-main.js": "/rasterscape-1m/static/js/runtime-main.8fed111c.js",
+    "runtime-main.js.map": "/rasterscape-1m/static/js/runtime-main.8fed111c.js.map",
+    "static/js/2.339afeb3.chunk.js": "/rasterscape-1m/static/js/2.339afeb3.chunk.js",
+    "static/js/2.339afeb3.chunk.js.map": "/rasterscape-1m/static/js/2.339afeb3.chunk.js.map",
+    "index.html": "/rasterscape-1m/index.html",
+    "precache-manifest.eac2b5a4409563d9018e93ff177d93c8.js": "/rasterscape-1m/precache-manifest.eac2b5a4409563d9018e93ff177d93c8.js",
+    "service-worker.js": "/rasterscape-1m/service-worker.js",
+    "static/css/main.925b9ddf.chunk.css.map": "/rasterscape-1m/static/css/main.925b9ddf.chunk.css.map"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.8fed111c.js",
+    "static/js/2.339afeb3.chunk.js",
+    "static/css/main.925b9ddf.chunk.css",
+    "static/js/main.e3f09ded.chunk.js"
+  ]
+}
