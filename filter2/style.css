@@ -1,0 +1,84 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: helvetica, sans-serif;
+  padding: 0;
+  background-color: #808080;
+}
+
+.emscripten {
+  padding-right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+}
+
+div.emscripten {
+  text-align: center;
+}
+
+div.emscripten_border {
+  border: 0;
+}
+
+canvas.emscripten {
+  position: fixed;
+  top: 0;
+  left: 0;
+  border: 0px none;
+  outline: none;
+}
+
+#logo {
+  display: inline-block;
+  margin: 20px 0 20px 20px;
+}
+
+.spinner {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  background: #fff;
+  animation: rotation 0.8s linear infinite;
+}
+
+@keyframes rotation {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#status,
+#progress {
+  display: none;
+}
+
+#controls {
+  display: inline-block;
+  float: right;
+  vertical-align: top;
+  margin-top: 30px;
+  margin-right: 20px;
+}
+
+#output {
+  width: 100%;
+  height: 200px;
+  margin: 0 auto;
+  margin-top: 10px;
+  display: none;
+  background-color: black;
+  color: white;
+  font-family: 'Lucida Console', Monaco, monospace;
+  outline: none;
+}
