@@ -5048,7 +5048,15 @@ function M.setup()
 	 brushParametersSettings["current"] = createRadioParameterSettings(ofTable("type", "lineSize", 'circleSize', "color", "opacity"))
 
 	brushParameters["type"] = "line"
-	brushParametersSettings["type"] = createRadioParameterSettings(ofTable("line", "circle", "camera", "fractal", "spectre", "clear"))
+	local showCameraMode = false
+	local typeItems = {"line", "circle", "camera", "fractal", "spectre", "clear"}
+	local visibleTypes = {}
+	for i = 1, #typeItems do
+		if showCameraMode or typeItems[i] ~= "camera" then
+			visibleTypes[#visibleTypes + 1] = typeItems[i]
+		end
+	end
+	brushParametersSettings["type"] = createRadioParameterSettings(ofTable(table.unpack(visibleTypes)))
 
 	brushParameters["color"] = "black"
 	brushParametersSettings["color"] = createRadioParameterSettings(ofTable("black", "white"))
