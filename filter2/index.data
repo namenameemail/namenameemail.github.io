@@ -4832,6 +4832,151 @@ function perfEndDraw()
     perfFlush()
 end
 
+SPIKE = {
+	intervalMs = 500,
+	lastLogMs = 0,
+	active = false,
+	n = 0,
+	frameSum = 0,
+	frameMax = 0,
+	composeSum = 0,
+	composeMax = 0,
+	lineSum = 0,
+	lineMax = 0,
+	colSum = 0,
+	colMax = 0,
+	spanMax = 0,
+	hMax = 0,
+	path = "?",
+	dragSum = 0,
+	dragMax = 0,
+	dragN = 0,
+	pts = 0,
+	dashMax = 0,
+	dashFrame = 0,
+}
+
+local function spikeAdd(sumKey, maxKey, dt)
+	SPIKE[sumKey] = SPIKE[sumKey] + dt
+	if dt > SPIKE[maxKey] then
+		SPIKE[maxKey] = dt
+	end
+end
+
+local function spikeResetWindow()
+	SPIKE.n = 0
+	SPIKE.frameSum = 0
+	SPIKE.frameMax = 0
+	SPIKE.composeSum = 0
+	SPIKE.composeMax = 0
+	SPIKE.lineSum = 0
+	SPIKE.lineMax = 0
+	SPIKE.colSum = 0
+	SPIKE.colMax = 0
+	SPIKE.spanMax = 0
+	SPIKE.hMax = 0
+	SPIKE.dragSum = 0
+	SPIKE.dragMax = 0
+	SPIKE.dragN = 0
+	SPIKE.dashMax = 0
+end
+
+function spikeFlush()
+	local n = SPIKE.n
+	if n < 1 then
+		return
+	end
+	local drags = SPIKE.dragN
+	local dragAvg = drags > 0 and SPIKE.dragSum / drags or 0
+	print(string.format(
+		"SPIKE line+play n=%d frame=%.1f/%.1f compose=%.1f/%.1f line=%.1f/%.1f pts=%d harm=%d grad=%s type=%s col=%.1f/%.1f span=%d h=%d dashes=%d path=%s drag=%.2f/%.1f drags=%d",
+		n,
+		SPIKE.frameSum / n, SPIKE.frameMax,
+		SPIKE.composeSum / n, SPIKE.composeMax,
+		SPIKE.lineSum / n, SPIKE.lineMax,
+		SPIKE.pts,
+		math.floor(brushParameters["harmonics"] or 0),
+		tostring(brushParameters["gradient"] or "0"),
+		tostring(brushParameters["lineType"] or "1"),
+		SPIKE.colSum / n, SPIKE.colMax,
+		SPIKE.spanMax,
+		SPIKE.hMax,
+		SPIKE.dashMax,
+		SPIKE.path,
+		dragAvg, SPIKE.dragMax, drags
+	))
+	spikeResetWindow()
+end
+
+function spikeDrag(ms)
+	SPIKE.dragSum = SPIKE.dragSum + ms
+	SPIKE.dragN = SPIKE.dragN + 1
+	if ms > SPIKE.dragMax then
+		SPIKE.dragMax = ms
+	end
+end
+
+function spikeColMeta(span, h, path)
+	if not (buttonsPressed[0] and brushParameters["type"] == "line") then
+		return
+	end
+	if span > SPIKE.spanMax then
+		SPIKE.spanMax = span
+	end
+	local ah = math.abs(h)
+	if ah > SPIKE.hMax then
+		SPIKE.hMax = ah
+	end
+	SPIKE.path = path
+end
+
+function spikeFrame(frameMs, composeMs, lineMs, linePts, colMs)
+	local dashes = SPIKE.dashFrame or 0
+	SPIKE.dashFrame = 0
+	if dashes > SPIKE.dashMax then
+		SPIKE.dashMax = dashes
+	end
+	local drawing = buttonsPressed[0] and brushParameters["type"] == "line"
+	local playing = false
+	for i = 1, SEL_CNT do
+		if selects[i] then
+			playing = true
+			break
+		end
+	end
+	if not (drawing and playing) then
+		if SPIKE.active then
+			spikeFlush()
+			print("SPIKE end")
+			SPIKE.active = false
+		else
+			SPIKE.dragN = 0
+			SPIKE.dragSum = 0
+			SPIKE.dragMax = 0
+			SPIKE.spanMax = 0
+			SPIKE.hMax = 0
+			SPIKE.dashMax = 0
+		end
+		return
+	end
+	if not SPIKE.active then
+		SPIKE.active = true
+		SPIKE.lastLogMs = perfNowMs()
+		print("SPIKE begin line+play")
+	end
+	SPIKE.n = SPIKE.n + 1
+	SPIKE.pts = linePts
+	spikeAdd("frameSum", "frameMax", frameMs)
+	spikeAdd("composeSum", "composeMax", composeMs)
+	spikeAdd("lineSum", "lineMax", lineMs)
+	spikeAdd("colSum", "colMax", colMs)
+	local now = perfNowMs()
+	if now - SPIKE.lastLogMs >= SPIKE.intervalMs then
+		spikeFlush()
+		SPIKE.lastLogMs = now
+	end
+end
+
 function perfFlush()
     if not PERF.on then
         return
@@ -5302,7 +5447,7 @@ function fillFilterCache(n)
         return FILTER_CACHE[n]
     end
 
-    local t0 = PERF.on and perfNowMs() or 0
+    local t0 = perfNowMs()
     local sx = sel["sx"]
     local sy = sel["sy"]
     local w = sel["w"]
@@ -5320,8 +5465,10 @@ function fillFilterCache(n)
     local rgbData = scratchOf(n)
     local readMs = 0
     local sampleMs = 0
+    local path = "full"
 
     if fboSampleColumnR then
+        path = "col"
         local status = fboSampleColumnR(fbo2, x0, x, sy, h, rgbData)
         if status == 2 then
             filterColumnX[n] = x
@@ -5329,21 +5476,20 @@ function fillFilterCache(n)
         elseif status == 1 or status == true then
             filterColumnX[n] = x
         end
-        if PERF.on then
-            readMs = perfNowMs() - t0
-        end
+        readMs = perfNowMs() - t0
     else
         fbo2:readToPixels(pixels)
-        local t1 = PERF.on and perfNowMs() or 0
+        local t1 = perfNowMs()
         readMs = t1 - t0
         local pxW = pixels:getWidth()
         local pxH = pixels:getHeight()
         sampleSpan(pxW, pxH, x0, x, sy, h, rgbData)
         foldColumn(n, rgbData)
         filterColumnX[n] = x
-        if PERF.on then
-            sampleMs = perfNowMs() - t1
-        end
+        sampleMs = perfNowMs() - t1
+    end
+    if spikeColMeta then
+        spikeColMeta(math.abs(x - x0) + 1, h, path)
     end
 
     filterCursorSeen[n] = cursor
@@ -5422,6 +5568,11 @@ function pixelColumntToArray(n)
     return FILTER_CACHE[n]
 end
 function M.draw()
+	local spikeT0 = perfNowMs()
+	local lineMs = 0
+	local linePts = 0
+	local composeMs = 0
+	local colMs = 0
 	if perfBeginDraw then
 		perfBeginDraw()
 	end
@@ -5441,7 +5592,10 @@ function M.draw()
 	ofEnableAlphaBlending(); 
 
 
-	-- сло с основным рисунком плюс временная камера, спектр и тд
+	if updateLineStrokeCache then
+		updateLineStrokeCache()
+	end
+	local composeT = perfNowMs()
 	fbo2:beginFbo()
 
 		ofClear(255, 255, 255, 255)
@@ -5538,10 +5692,16 @@ function M.draw()
 			end
 
 			if brushParameters["type"] == "line" and brushParameters["lineType"] == "2" then
+				local lineT = perfNowMs()
 				drawType2Line(buttonsPressed[0].sx, buttonsPressed[0].sy, prevPointX, prevPointY)
+				lineMs = perfNowMs() - lineT
+				linePts = 2
 			end
 			if brushParameters["type"] == "line" and (brushParameters["lineType"] or "1") == "1" then
+				local lineT = perfNowMs()
 				drawLineStroke()
+				lineMs = perfNowMs() - lineT
+				linePts = strokePointCount()
 			end
 		end
 
@@ -5568,11 +5728,17 @@ function M.draw()
 		
 
 	fbo2:endFbo()
+	composeMs = perfNowMs() - composeT - lineMs
+	if composeMs < 0 then
+		composeMs = 0
+	end
 	perfSection("compose")
 
+	local colT = perfNowMs()
 	if refreshActiveFilterCaches then
 		refreshActiveFilterCaches()
 	end
+	colMs = perfNowMs() - colT
 	perfSection("columns")
 
 	ofDisableAlphaBlending(); 
@@ -5669,6 +5835,7 @@ function M.draw()
 	if perfEndDraw then
 		perfEndDraw()
 	end
+	spikeFrame(perfNowMs() - spikeT0, composeMs, lineMs, linePts, colMs)
 end
 freqPendingColumns = 0
 FREQ_MAX_PENDING_COLUMNS = 4
@@ -5846,13 +6013,6 @@ function drawGeneralSettings()
 end
 local lineMesh
 
-local function addEnd(mesh, x, y, nx, ny, c, a)
-	mesh:addVertex(ofVec3f(x + nx, y + ny, 0):vec3())
-	mesh:addColor(ofFloatColor(c, c, c, a))
-	mesh:addVertex(ofVec3f(x - nx, y - ny, 0):vec3())
-	mesh:addColor(ofFloatColor(c, c, c, a))
-end
-
 local SAMPLE_RATE = 44100
 local FFT_SIZE = 512
 
@@ -5870,8 +6030,15 @@ end
 
 local stroke = {}
 
+local strokeFbo
+local strokeFboW = 0
+local strokeFboH = 0
+local strokeDrawn = 0
+local strokeKey
+
 function beginLineStroke(x, y)
 	stroke = { { x, y } }
+	strokeDrawn = 0
 end
 
 function extendLineStroke(x, y)
@@ -5921,36 +6088,6 @@ local function pathCum(pts)
 	return cum, total
 end
 
-local function pointOn(pts, cum, dist)
-	if dist <= 0 then return pts[1][1], pts[1][2] end
-	local n = #pts
-	if dist >= cum[n] then return pts[n][1], pts[n][2] end
-	local i = 2
-	while cum[i] < dist do i = i + 1 end
-	local span = cum[i] - cum[i - 1]
-	local u = span < 1e-6 and 0 or (dist - cum[i - 1]) / span
-	return pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * u,
-		pts[i - 1][2] + (pts[i][2] - pts[i - 1][2]) * u
-end
-
-local function slicePath(pts, cum, d0, d1)
-	local x, y = pointOn(pts, cum, d0)
-	local out = { { x, y } }
-	for i = 2, #pts - 1 do
-		if cum[i] > d0 + 0.01 and cum[i] < d1 - 0.01 then
-			out[#out + 1] = pts[i]
-		end
-	end
-	x, y = pointOn(pts, cum, d1)
-	local last = out[#out]
-	local dx = last[1] - x
-	local dy = last[2] - y
-	if dx * dx + dy * dy > 0.01 then
-		out[#out + 1] = { x, y }
-	end
-	return out
-end
-
 local function dashLengths()
 	local gap = brushParameters['gap'] or 0
 	if gap <= 0 then return nil end
@@ -5961,68 +6098,102 @@ local function dashLengths()
 	return on * size, gap * size
 end
 
-local function drawPolyline(pts, yShift, origin, span)
-	local n = #pts
-	if n < 2 then return end
+local scratchCum = {}
+local perpX, perpY, perpOk = {}, {}, {}
+local stripX, stripY, stripC, stripA = {}, {}, {}, {}
+local stripN = 0
+local outX, outY, outC, outA = {}, {}, {}, {}
+local outN = 0
+
+local function pushVert(x, y, c, a)
+	stripN = stripN + 1
+	stripX[stripN] = x
+	stripY[stripN] = y
+	stripC[stripN] = c
+	stripA[stripN] = a
+end
+
+local function pushEnd(x, y, nx, ny, c, a)
+	pushVert(x + nx, y + ny, c, a)
+	pushVert(x - nx, y - ny, c, a)
+end
+
+local function drawVerts(xs, ys, cs, as, n)
+	if n < 3 then return end
+	if not lineMesh then lineMesh = ofMesh() end
+	lineMesh:clear()
+	lineMesh:setMode(OF_PRIMITIVE_TRIANGLE_STRIP)
+	for i = 1, n do
+		lineMesh:addVertex(ofVec3f(xs[i], ys[i], 0):vec3())
+		lineMesh:addColor(ofFloatColor(cs[i], cs[i], cs[i], as[i]))
+	end
+	ofEnableAlphaBlending()
+	ofSetColor(255, 255, 255, 255)
+	lineMesh:draw()
+end
+
+local function writeStrip(pts, count, yShift, origin, span)
+	stripN = 0
+	local n = count
+	if n < 2 then return false end
 	local w = (brushParameters['lineSize'] or 1) / 2
 	local minHalf = 0.5 * math.sqrt(2) + 0.1
 	if w < minHalf then w = minHalf end
 	local c = brushParameters['color'] == 'black' and 0 or 1
 	local a0 = (brushParameters['opacity'] or 0) / 100
 	local g = brushParameters['gradient']
-	local cum = { 0 }
+	scratchCum[1] = 0
 	local total = 0
 	for i = 2, n do
 		local dx = pts[i][1] - pts[i - 1][1]
 		local dy = pts[i][2] - pts[i - 1][2]
 		total = total + math.sqrt(dx * dx + dy * dy)
-		cum[i] = total
+		scratchCum[i] = total
 	end
-	if total < 0.01 then return end
+	local cum = scratchCum
+	if total < 0.01 then return false end
 	origin = origin or 0
 	if not span or span < 0.01 then span = total end
 	local function at(dist)
 		return (origin + dist) / span
 	end
-	local perp = {}
 	for i = 1, n - 1 do
 		local px, py = unitPerp(pts[i][1], pts[i][2], pts[i + 1][1], pts[i + 1][2])
-		perp[i] = px and { px, py } or nil
+		perpOk[i] = px ~= nil
+		if px then
+			perpX[i] = px
+			perpY[i] = py
+		end
 	end
-	if not lineMesh then lineMesh = ofMesh() end
-	lineMesh:clear()
-	lineMesh:setMode(OF_PRIMITIVE_TRIANGLE_STRIP)
 	for i = 1, n do
 		local nx, ny
 		if i == 1 then
-			local p = perp[1]
-			if not p then return end
-			nx, ny = p[1], p[2]
+			if not perpOk[1] then return false end
+			nx, ny = perpX[1], perpY[1]
 		elseif i == n then
-			local p = perp[n - 1]
-			if not p then return end
-			nx, ny = p[1], p[2]
+			if not perpOk[n - 1] then return false end
+			nx, ny = perpX[n - 1], perpY[n - 1]
 		else
-			local a = perp[i - 1]
-			local b = perp[i]
-			if a and b then
-				nx, ny = a[1] + b[1], a[2] + b[2]
+			local aok = perpOk[i - 1]
+			local bok = perpOk[i]
+			if aok and bok then
+				nx, ny = perpX[i - 1] + perpX[i], perpY[i - 1] + perpY[i]
 				local len = math.sqrt(nx * nx + ny * ny)
 				if len < 0.01 then
-					nx, ny = a[1], a[2]
+					nx, ny = perpX[i - 1], perpY[i - 1]
 				else
 					nx, ny = nx / len, ny / len
-					local d = nx * a[1] + ny * a[2]
+					local d = nx * perpX[i - 1] + ny * perpY[i - 1]
 					if d > 0.3 then
 						nx, ny = nx / d, ny / d
 					end
 				end
-			elseif a then
-				nx, ny = a[1], a[2]
-			elseif b then
-				nx, ny = b[1], b[2]
+			elseif aok then
+				nx, ny = perpX[i - 1], perpY[i - 1]
+			elseif bok then
+				nx, ny = perpX[i], perpY[i]
 			else
-				return
+				return false
 			end
 		end
 		if g == '2' and i > 1 then
@@ -6033,7 +6204,7 @@ local function drawPolyline(pts, yShift, origin, span)
 				local u = (mid - d0) / (d1 - d0)
 				local qx, qy = unitPerp(pts[i - 1][1], pts[i - 1][2], pts[i][1], pts[i][2])
 				if qx then
-					addEnd(lineMesh,
+					pushEnd(
 						pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * u,
 						pts[i - 1][2] + (pts[i][2] - pts[i - 1][2]) * u + yShift,
 						qx * w, qy * w, c, strokeAlpha(g, a0, 0.5))
@@ -6048,44 +6219,202 @@ local function drawPolyline(pts, yShift, origin, span)
 			if px and steps > 1 then
 				for s = 1, steps - 1 do
 					local u = s / steps
-					addEnd(lineMesh,
+					pushEnd(
 						pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * u,
 						pts[i - 1][2] + (pts[i][2] - pts[i - 1][2]) * u + yShift,
 						px * w, py * w, c, strokeAlpha(g, a0, t0 + (t1 - t0) * u))
 				end
 			end
 		end
-		addEnd(lineMesh, pts[i][1], pts[i][2] + yShift, nx * w, ny * w, c, strokeAlpha(g, a0, at(cum[i])))
+		pushEnd(pts[i][1], pts[i][2] + yShift, nx * w, ny * w, c, strokeAlpha(g, a0, at(cum[i])))
 	end
-	ofEnableAlphaBlending()
+	return stripN >= 3
+end
+
+local function drawPolyline(pts, yShift, origin, span)
+	if writeStrip(pts, #pts, yShift, origin, span) then
+		drawVerts(stripX, stripY, stripC, stripA, stripN)
+	end
+end
+
+local function pushV(x, y, c, a)
+	outN = outN + 1
+	outX[outN] = x
+	outY[outN] = y
+	outC[outN] = c
+	outA[outN] = a
+end
+
+local function pushQuad(x0, y0, x1, y1, nx, ny, w, c, a0, a1)
+	local ox = nx * w
+	local oy = ny * w
+	local lx0 = x0 + ox
+	local ly0 = y0 + oy
+	local rx0 = x0 - ox
+	local ry0 = y0 - oy
+	local lx1 = x1 + ox
+	local ly1 = y1 + oy
+	local rx1 = x1 - ox
+	local ry1 = y1 - oy
+	pushV(lx0, ly0, c, a0)
+	pushV(rx0, ry0, c, a0)
+	pushV(lx1, ly1, c, a1)
+	pushV(rx0, ry0, c, a0)
+	pushV(lx1, ly1, c, a1)
+	pushV(rx1, ry1, c, a1)
+end
+
+local function drawOut(mode, blend)
+	if outN < 3 then return end
+	if not lineMesh then lineMesh = ofMesh() end
+	lineMesh:clear()
+	lineMesh:setMode(mode)
+	for i = 1, outN do
+		lineMesh:addVertex(ofVec3f(outX[i], outY[i], 0):vec3())
+		lineMesh:addColor(ofFloatColor(outC[i], outC[i], outC[i], outA[i]))
+	end
+	if blend then
+		ofEnableAlphaBlending()
+	else
+		ofDisableAlphaBlending()
+	end
 	ofSetColor(255, 255, 255, 255)
 	lineMesh:draw()
 end
 
-local function drawPath(pts, yShift)
+local function emitDash(x0, y0, x1, y1, nx, ny, w, col, baseA, g, d0, d1, total)
+	if g == "1" then
+		local steps = math.ceil((d1 - d0) / total * 32)
+		if steps < 1 then steps = 1 end
+		if steps > 32 then steps = 32 end
+		local px, py = x0, y0
+		local pa = strokeAlpha(g, baseA, d0 / total)
+		for s = 1, steps do
+			local u = s / steps
+			local x = x0 + (x1 - x0) * u
+			local y = y0 + (y1 - y0) * u
+			local d = d0 + (d1 - d0) * u
+			local a = strokeAlpha(g, baseA, d / total)
+			pushQuad(px, py, x, y, nx, ny, w, col, pa, a)
+			px, py, pa = x, y, a
+		end
+		return
+	end
+	local a0 = strokeAlpha(g, baseA, d0 / total)
+	local a1 = strokeAlpha(g, baseA, d1 / total)
+	if g == "2" then
+		local mid = total * 0.5
+		if d0 < mid and mid < d1 then
+			local u = (mid - d0) / (d1 - d0)
+			local mx = x0 + (x1 - x0) * u
+			local my = y0 + (y1 - y0) * u
+			local am = strokeAlpha(g, baseA, 0.5)
+			pushQuad(x0, y0, mx, my, nx, ny, w, col, a0, am)
+			pushQuad(mx, my, x1, y1, nx, ny, w, col, am, a1)
+			return
+		end
+	end
+	pushQuad(x0, y0, x1, y1, nx, ny, w, col, a0, a1)
+end
+
+local function drawDashed(pts, cum, total, yShift, onLen, offLen, startSeg, blend)
+	local n = #pts
+	local period = onLen + offLen
+	local w = (brushParameters["lineSize"] or 1) / 2
+	local minHalf = 0.5 * math.sqrt(2) + 0.1
+	if w < minHalf then w = minHalf end
+	local col = brushParameters["color"] == "black" and 0 or 1
+	local baseA = (brushParameters["opacity"] or 0) / 100
+	local g = brushParameters["gradient"]
+	outN = 0
+	local dashes = 0
+	local i0 = startSeg or 1
+	if i0 < 1 then i0 = 1 end
+	for i = i0, n - 1 do
+		local segLen = cum[i + 1] - cum[i]
+		if segLen >= 0.01 then
+			local dx = pts[i + 1][1] - pts[i][1]
+			local dy = pts[i + 1][2] - pts[i][2]
+			local inv = 1 / segLen
+			local nx = -dy * inv
+			local ny = dx * inv
+			local seg0 = cum[i]
+			local seg1 = cum[i + 1]
+			local dashAt = math.floor(seg0 / period) * period
+			if dashAt + onLen <= seg0 + 1e-4 then
+				dashAt = dashAt + period
+			end
+			while dashAt < seg1 - 0.01 do
+				local a = dashAt
+				if a < seg0 then a = seg0 end
+				local b = dashAt + onLen
+				if b > seg1 then b = seg1 end
+				if b - a > 0.5 then
+					local ua = (a - seg0) * inv
+					local ub = (b - seg0) * inv
+					emitDash(
+						pts[i][1] + dx * ua,
+						pts[i][2] + dy * ua + yShift,
+						pts[i][1] + dx * ub,
+						pts[i][2] + dy * ub + yShift,
+						nx, ny, w, col, baseA, g, a, b, total)
+					dashes = dashes + 1
+				end
+				dashAt = dashAt + period
+			end
+		end
+	end
+	drawOut(OF_PRIMITIVE_TRIANGLES, blend)
+	return dashes
+end
+
+local function drawPath(pts, yShift, startSeg, blend)
 	local cum, total = pathCum(pts)
-	if total < 0.01 then return end
+	if total < 0.01 then return 0 end
 	local onLen, offLen = dashLengths()
 	if not onLen then
 		drawPolyline(pts, yShift, 0, total)
-		return
+		return 1
 	end
-	if onLen <= 0 then return end
-	local period = onLen + offLen
-	local d = 0
-	while d < total - 0.01 do
-		local d1 = math.min(total, d + onLen)
-		if d1 - d > 0.5 then
-			drawPolyline(slicePath(pts, cum, d, d1), yShift, d, total)
-		end
-		d = d + period
+	if onLen <= 0 then return 0 end
+	if blend == nil then blend = true end
+	local dashes = drawDashed(pts, cum, total, yShift, onLen, offLen, startSeg, blend)
+	if SPIKE then
+		SPIKE.dashFrame = (SPIKE.dashFrame or 0) + dashes
 	end
+	return dashes
 end
 
-function drawLineStroke()
-	if #stroke < 2 then return end
-	drawPath(stroke, 0)
-	local count = math.floor(brushParameters['harmonics'] or 0)
+function strokePointCount()
+	return #stroke
+end
+
+local function brushKey()
+	return tostring(brushParameters["lineSize"]) .. "|"
+		.. tostring(brushParameters["color"]) .. "|"
+		.. tostring(brushParameters["opacity"]) .. "|"
+		.. tostring(brushParameters["dash"]) .. "|"
+		.. tostring(brushParameters["gap"])
+end
+
+local function ensureStrokeFbo()
+	if strokeFbo and strokeFboW == W and strokeFboH == H then return end
+	strokeFbo = ofFbo()
+	strokeFbo:allocate(W, H, GL_RGBA)
+	strokeFboW = W
+	strokeFboH = H
+	strokeDrawn = 0
+	strokeKey = nil
+end
+
+local function blitStroke(y)
+	ofEnableAlphaBlending()
+	ofSetColor(255, 255, 255, 255)
+	strokeFbo:draw(0, y)
+end
+
+local function drawHarmonicCopies(drawShift)
+	local count = math.floor(brushParameters["harmonics"] or 0)
 	if count < 1 then return end
 	local last = stroke[#stroke]
 	local index = getIntersected(last[1], last[2])
@@ -6103,8 +6432,46 @@ function drawLineStroke()
 			end
 		end
 		if not fit then break end
-		drawPath(stroke, shift)
+		drawShift(shift)
 	end
+end
+
+local function strokeCacheActive()
+	local g = brushParameters["gradient"]
+	return g ~= "1" and g ~= "2" and dashLengths() and #stroke >= 2
+end
+
+function updateLineStrokeCache()
+	if not strokeCacheActive() then return end
+	ensureStrokeFbo()
+	local key = brushKey()
+	if strokeKey ~= key then
+		strokeKey = key
+		strokeDrawn = 0
+	end
+	if strokeDrawn >= #stroke then return end
+	local startSeg = strokeDrawn
+	if startSeg < 1 then startSeg = 1 end
+	strokeFbo:beginFbo()
+	if strokeDrawn < 1 then
+		ofClear(0, 0, 0, 0)
+	end
+	drawPath(stroke, 0, startSeg, false)
+	strokeFbo:endFbo()
+	strokeDrawn = #stroke
+end
+
+function drawLineStroke()
+	if #stroke < 2 then return end
+	if not strokeCacheActive() then
+		drawPath(stroke, 0)
+		drawHarmonicCopies(function(shift)
+			drawPath(stroke, shift)
+		end)
+		return
+	end
+	blitStroke(0)
+	drawHarmonicCopies(blitStroke)
 end
 
 function drawStraightLine(x1, y1, x2, y2)
@@ -9248,6 +9615,7 @@ function mouseDragged(e)
 	-- print('drag', not not buttonsPressed[0], not not buttonsPressed[2])
 	-- if startButton == 0 then
 	if buttonsPressed[0] then
+		local dragT = brushParameters["type"] == "line" and perfNowMs() or nil
 		fbo:beginFbo()
 			
 		ofEnableAlphaBlending()
@@ -9287,6 +9655,9 @@ function mouseDragged(e)
 		end
 		
 		fbo:endFbo()
+		if dragT and spikeDrag then
+			spikeDrag(perfNowMs() - dragT)
+		end
 	end
 
 	if buttonsPressed[1] then
@@ -9686,6 +10057,9 @@ function M.mouseReleased(e)
 			fbo:endFbo()
 		end
 		if buttonsPressed[0] and brushParameters['type'] == 'line' and (brushParameters['lineType'] or '1') == '1' then
+			if updateLineStrokeCache then
+				updateLineStrokeCache()
+			end
 			fbo:beginFbo()
 			drawLineStroke()
 			fbo:endFbo()
