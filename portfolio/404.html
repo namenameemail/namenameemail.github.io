@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>portfolio</title>
+    <script>
+      sessionStorage.setItem('portfolio-redirect', location.pathname + location.search + location.hash)
+      var base = location.pathname.split('/').slice(0, -1).join('/') || ''
+      location.replace(base + '/index.html')
+    </script>
+  </head>
+  <body></body>
+</html>
