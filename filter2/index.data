@@ -299,6 +299,7 @@
 #X obj 146 541 noise;
 #X obj 148 630 noise;
 #X obj 10 667 expr~ $v1*1.0+$v2*1.0+$v3*1.0+$v4*1.0+$v5*1.0+$v6*1.0;
+#X obj 10 700 *~ 4;
 #X obj 448 1302 ofelia;
 #X obj 204 1217 t b b b b;
 #X msg 424 1272 read -c src/mouseHighlight.lua;
@@ -433,7 +434,7 @@
 #X connect 151 0 50 0;
 #X connect 152 0 54 0;
 #X connect 156 0 158 0;
-#X connect 158 0 202 0;
+#X connect 158 0 203 0;
 #X connect 162 0 13 0;
 #X connect 163 0 18 0;
 #X connect 164 0 20 0;
@@ -470,14 +471,15 @@
 #X connect 197 0 200 3;
 #X connect 198 0 200 4;
 #X connect 199 0 200 5;
-#X connect 200 0 186 0;
-#X connect 200 0 186 1;
-#X connect 200 0 193 0;
-#X connect 202 0 170 0;
-#X connect 202 1 169 0;
-#X connect 202 2 168 0;
-#X connect 202 3 203 0;
-#X connect 203 0 201 0;
+#X connect 203 0 170 0;
+#X connect 203 1 169 0;
+#X connect 203 2 168 0;
+#X connect 203 3 204 0;
+#X connect 204 0 202 0;
+#X connect 200 0 201 0;
+#X connect 201 0 186 0;
+#X connect 201 0 186 1;
+#X connect 201 0 193 0;
 #N canvas -157 -30 2560 1420 12;
 #N canvas 82 35 1097 779 fft 0;
 #X obj 864 31 bng 19 250 50 0 empty empty empty 0 -10 0 12 #fcfcfc #000000 #000000;
@@ -561,7 +563,7 @@
 #X obj 448 677 tabwrite~ arr6;
 #X obj -28 264 tabreceive~ filter;
 #X text 211 713 comment, f 21;
-#X obj 4 369 /~ 5;
+#X obj 4 369 /~ 255;
 #X obj 231 -16 inlet;
 #X obj 10 310 *~;
 #X obj 673 38 block~ 512 4;
@@ -4604,7 +4606,7 @@ end#N canvas 397 307 444 239 10;
 #X connect 1 0 5 0;
 #X connect 3 0 2 0;
 #X connect 5 0 4 0;
-clock = ofClock(this, "setup")
+    Mac OS X            	   2  �     �                                    ATTR����  �   �                     �     com.apple.provenance  &�w� 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            This resource fork intentionally left blank                                                                                                                                                                                                                            ��    Mac OS X            	   2  �     �                                    ATTR����  �   �                     �     com.apple.provenance  &�w� 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            This resource fork intentionally left blank                                                                                                                                                                                                                            ��    Mac OS X            	   2  �     �                                    ATTR����  �   �                     �     com.apple.provenance  &�w� 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            This resource fork intentionally left blank                                                                                                                                                                                                                            ��clock = ofClock(this, "setup")
 shaderDir = canvas:getDir() .. "/src/shaders/"
 shader = ofShader()
 shaderFMB = ofShader()
@@ -5839,6 +5841,7 @@ function M.draw()
 end
 freqPendingColumns = 0
 FREQ_MAX_PENDING_COLUMNS = 4
+FREQ_DISPLAY_GAIN = 10
 
 function drawFreq()
     freqPendingColumns = math.min(freqPendingColumns + 1, FREQ_MAX_PENDING_COLUMNS)
@@ -5855,7 +5858,9 @@ function drawPendingFreq()
     ofFill()
     for _ = 1, freqPendingColumns do
         for i = 1, freqH do
-            local color = (1 - freqs[math.min(math.floor(i / freqH * 255 / 2) + 1, lastFreq)]) * 255
+            local v = freqs[math.min(math.floor(i / freqH * 255 / 2) + 1, lastFreq)] * FREQ_DISPLAY_GAIN
+            if v > 1 then v = 1 elseif v < 0 then v = 0 end
+            local color = (1 - v) * 255
             ofSetColor(color, color, color, 255)
             ofDrawRectangle(freqCursor, freqH - i, 1, 1)
         end
@@ -5910,7 +5915,7 @@ function drawBrushParams()
 
     for i, type in ipairs(params) do
 
-        if not activeSelectIndex and brushParameters["current"] == type then
+        if brushParameters["current"] == type then
             ofSetColor(255, 0, 255, 255)
         elseif previewParameter and previewParameter.type == 'brush' and previewParameter.param == type then
             ofSetColor(0, 255, 0, 255) -- Желтый цвет для предварительного просмотра
@@ -5945,9 +5950,7 @@ function drawBrushParams()
         else
             title:drawString(string, margin, wH - firstLine)
         end
-        if (not activeSelectIndex) then
-            smalltext:drawString(brushParamText[type] or type, margin, wH - secLine)
-        end
+        smalltext:drawString(brushParamText[type] or type, margin, wH - secLine)
 
         if type == 'type' then margin = margin + 70 * generalSettings["font"] end
         if type == 'lineSize' then margin = margin + 40 * generalSettings["font"] end
@@ -6015,13 +6018,6 @@ local lineMesh
 
 local SAMPLE_RATE = 44100
 local FFT_SIZE = 512
-
-local function aboveSelectionTop(sel, y)
-	if sel['h'] >= 0 then
-		return y < sel['sy']
-	end
-	return y > sel['sy']
-end
 
 function harmonicDy(sel)
 	local step = brushParameters['stepHz'] or 0
@@ -6416,23 +6412,13 @@ end
 local function drawHarmonicCopies(drawShift)
 	local count = math.floor(brushParameters["harmonics"] or 0)
 	if count < 1 then return end
-	local last = stroke[#stroke]
-	local index = getIntersected(last[1], last[2])
-	if not index then return end
+	local index = activeSelectIndex
+	if not index or not selects[index] then return end
 	local sel = selects[index]
 	local dy = harmonicDy(sel)
 	if math.abs(dy) < 0.5 then return end
 	for i = 1, count do
-		local shift = dy * i
-		local fit = true
-		for p = 1, #stroke do
-			if aboveSelectionTop(sel, stroke[p][2] + shift) then
-				fit = false
-				break
-			end
-		end
-		if not fit then break end
-		drawShift(shift)
+		drawShift(dy * i)
 	end
 end
 
@@ -6482,18 +6468,14 @@ function drawType2Line(x1, y1, x2, y2)
 	drawStraightLine(x1, y1, x2, y2)
 	local count = math.floor(brushParameters['harmonics'] or 0)
 	if count < 1 then return end
-	local index = getIntersected(x2, y2)
-	if not index then return end
+	local index = activeSelectIndex
+	if not index or not selects[index] then return end
 	local sel = selects[index]
 	local dy = harmonicDy(sel)
 	if math.abs(dy) < 0.5 then return end
 	for i = 1, count do
-		local ay = y1 + dy * i
-		local by = y2 + dy * i
-		if aboveSelectionTop(sel, ay) or aboveSelectionTop(sel, by) then
-			break
-		end
-		drawStraightLine(x1, ay, x2, by)
+		local shift = dy * i
+		drawStraightLine(x1, y1 + shift, x2, y2 + shift)
 	end
 end
 
@@ -6504,8 +6486,8 @@ function drawHarmonicMarks()
 	if count < 1 then return end
 	local x = unscaledX(ofGetMouseX())
 	local y = unscaledY(ofGetMouseY())
-	local index = getIntersected(x, y)
-	if not index then return end
+	local index = activeSelectIndex
+	if not index or not selects[index] then return end
 	local sel = selects[index]
 	local dy = harmonicDy(sel)
 	if math.abs(dy) < 0.5 then return end
@@ -6514,10 +6496,8 @@ function drawHarmonicMarks()
 	ofSetColor(140, 140, 140, 110)
 	ofSetLineWidth(1)
 	for i = 1, count do
-		local yy = y + dy * i
-		if aboveSelectionTop(sel, yy) then break end
 		local sx = scaledX(x)
-		local sy = scaledY(yy)
+		local sy = scaledY(y + dy * i)
 		ofDrawLine(sx - arm, sy, sx + arm, sy)
 		ofDrawLine(sx, sy - arm, sx, sy + arm)
 	end
@@ -9435,34 +9415,45 @@ validated by the IA.
 KEY_MOUSE_BUTTONS = { [string.byte('q')] = 0, [string.byte('Q')] = 0, [string.byte('e')] = 2, [string.byte('E')] = 2 }
 KEY_MOUSE_SCROLL = { [string.byte('s')] = -1, [string.byte('S')] = -1, [string.byte('w')] = 1, [string.byte('W')] = 1 }
 KEY_PARAM_STEP = { [string.byte('a')] = -1, [string.byte('A')] = -1, [string.byte('d')] = 1, [string.byte('D')] = 1 }
+KEY_SELECT_PARAM_STEP = { [string.byte('g')] = -1, [string.byte('G')] = -1, [string.byte('j')] = 1, [string.byte('J')] = 1 }
+KEY_SELECT_VALUE = { [string.byte('h')] = -1, [string.byte('H')] = -1, [string.byte('y')] = 1, [string.byte('Y')] = 1 }
 keyMouseHeld = {}
 keyParamHeld = {}
+keySelectParamHeld = {}
 fractalPan = false
 
-local function paramPreview(delta)
-	local target = activeSelectIndex
-	if target then
-		return { type = 'select', target = target, param = getNextRadioItem(delta, selects[target]['current'], selectParametersSettings['current'].items) }
-	end
+local function brushParamPreview(delta)
 	if isSetting then
 		return { type = 'setting', param = getNextRadioItem(delta, generalSettings['current'], generalSettingsSettings['current'].items) }
 	end
 	return { type = 'brush', param = getNextRadioItem(delta, brushParameters['current'], getBrushParamsByCurrentType()) }
 end
 
-local function applyParamStep(delta)
+local function selectParamPreview(delta)
 	local target = activeSelectIndex
-	if target then
-		changeSelectParameter(target, 'current', delta)
-	elseif isSetting then
+	if not target or not selects[target] then
+		return nil
+	end
+	return { type = 'select', target = target, param = getNextRadioItem(delta, selects[target]['current'], selectParametersSettings['current'].items) }
+end
+
+local function applyBrushParamStep(delta)
+	if isSetting then
 		changeSetting('current', delta)
 	else
 		changeBrushParameter('current', delta)
 	end
 end
 
-local function heldParamStep()
-	for key, step in pairs(keyParamHeld) do
+local function applySelectParamStep(delta)
+	local target = activeSelectIndex
+	if target and selects[target] then
+		changeSelectParameter(target, 'current', delta)
+	end
+end
+
+local function heldParamStep(held)
+	for key, step in pairs(held) do
 		return step
 	end
 end
@@ -9485,14 +9476,33 @@ function M.keyReleased(e)
 		legendKeyHeld = false
 	end
 
-	local step = keyParamHeld[e.key]
-	if step then
+	local brushStep = keyParamHeld[e.key]
+	if brushStep then
 		keyParamHeld[e.key] = nil
-		applyParamStep(step)
-		local still = heldParamStep()
-		previewParameter = still and paramPreview(still) or nil
+		applyBrushParamStep(brushStep)
+		local stillSelect = heldParamStep(keySelectParamHeld)
+		local stillBrush = heldParamStep(keyParamHeld)
+		if stillSelect then
+			previewParameter = selectParamPreview(stillSelect)
+		else
+			previewParameter = stillBrush and brushParamPreview(stillBrush) or nil
+		end
+	end
+
+	local selectStep = keySelectParamHeld[e.key]
+	if selectStep then
+		keySelectParamHeld[e.key] = nil
+		applySelectParamStep(selectStep)
+		local stillSelect = heldParamStep(keySelectParamHeld)
+		local stillBrush = heldParamStep(keyParamHeld)
+		if stillSelect then
+			previewParameter = selectParamPreview(stillSelect)
+		else
+			previewParameter = stillBrush and brushParamPreview(stillBrush) or nil
+		end
 	end
 end
+
 
 function M.keyPressed(e)
 
@@ -9516,6 +9526,21 @@ function M.keyPressed(e)
 		return
 	end
 
+	if e.key == string.byte('r') or e.key == string.byte('R') then
+		if activeSelectIndex then
+			deleteSelect(activeSelectIndex)
+		end
+		return
+	end
+
+	local digit = e.key - string.byte('0')
+	if digit >= 1 and digit <= SEL_CNT then
+		if selects[digit] then
+			activeSelectIndex = digit
+		end
+		return
+	end
+
 	local button = KEY_MOUSE_BUTTONS[e.key]
 	if button then
 		if not keyMouseHeld[e.key] then
@@ -9531,71 +9556,65 @@ function M.keyPressed(e)
 		return
 	end
 
-	local target = activeSelectIndex
+	local selectValue = KEY_SELECT_VALUE[e.key]
+	if selectValue then
+		local target = activeSelectIndex
+		if target and selects[target] then
+			changeSelectParameter(target, selects[target]['current'], selectValue)
+		end
+		return
+	end
 
 	if (e.key == OF_KEY_UP or e.key == OF_KEY_DOWN) then 
-		local delta = 1
-
-		if e.key == OF_KEY_UP then
-			delta = 1
-		elseif e.key == OF_KEY_DOWN then
-			delta = -1
-		end
-
-		if target then
-			changeSelectParameter(target, selects[target]['current'], delta)
+		local delta = e.key == OF_KEY_UP and 1 or -1
+		if isSetting then
+			changeSetting(generalSettings['current'], delta)
 		else
-			if (isSetting) then
-				changeSetting(generalSettings['current'], delta)
-			else
-
-				changeBrushParameter(brushParameters['current'], delta)
-
-			end
+			changeBrushParameter(brushParameters['current'], delta)
 		end
+		return
 	end
 
 	local paramStep = KEY_PARAM_STEP[e.key]
 	if paramStep then
 		if not keyParamHeld[e.key] then
 			keyParamHeld[e.key] = paramStep
-			previewParameter = paramPreview(paramStep)
+			previewParameter = brushParamPreview(paramStep)
+		end
+		return
+	end
+
+	local selectParamStep = KEY_SELECT_PARAM_STEP[e.key]
+	if selectParamStep then
+		if activeSelectIndex and selects[activeSelectIndex] and not keySelectParamHeld[e.key] then
+			keySelectParamHeld[e.key] = selectParamStep
+			previewParameter = selectParamPreview(selectParamStep)
 		end
 		return
 	end
 
 	if (e.key == OF_KEY_RIGHT or e.key == OF_KEY_LEFT) then
-
-		local d = e.key == OF_KEY_RIGHT and 1 or -1;
-		
-		if target then
-			changeSelectParameter(target, 'current', d)
+		local d = e.key == OF_KEY_RIGHT and 1 or -1
+		if isSetting then
+			changeSetting('current', d)
 		else
-				if (isSetting) then
-					changeSetting('current', d)
-				else
-					changeBrushParameter('current', d)
-				end
-			
+			changeBrushParameter('current', d)
 		end
+		return
 	end
 
-  
-	-- Проверяем, была ли нажата клавиша "P" (заглавная или строчная)
 	if (e.key == string.byte('p')) then
       if not buttonsPressed[0] then 
         isSetting = not isSetting
       end
 	end
 
-
 	
 end
+local activeSelectBeforeCreate = nil
 
--- Функция для вычисления предварительного параметра
 local function calculatePreviewParameter(x, y)
-	local target = getActiveSelectIndex(x, y)
-	return getNextParameter(target)
+	return getNextParameter(nil)
 end
 
 function mouseDragged(e)
@@ -9605,9 +9624,6 @@ function mouseDragged(e)
 	local button = e.button;
 	-- print('mouseDragged', button)
 
-	
-	-- activeSelectIndex = (not (startButton == 0)) and (not isSetting) and getIntersected(x, y)
-	getActiveSelectIndex(x, y)
 	getActiveDynSpectreIndex(x, y)
 	
 	
@@ -9731,9 +9747,10 @@ function M.mousePressed(e)
 		MouseHighlight.setCircle('red', true)
 
 		if selectIndex <=6 then
+			activeSelectBeforeCreate = activeSelectIndex
 			local newSelect = createNewSelect(buttonsPressed[button].sx, buttonsPressed[button].sy)
 			selects[selectIndex] = newSelect
-			-- print('press', selectIndex)
+			activeSelectIndex = selectIndex
 			resendSelectsParameters('speed')
 			resendSelectsParameters('volume')
 			resendSelectsParameters('frames')
@@ -9745,10 +9762,6 @@ function M.mousePressed(e)
 		MouseHighlight.setCircle('blue', true)
 
 		saveFBO2()
-	
-		if (buttonsPressed[2]) then
-			getActiveSelectIndex(x, y)
-		end
 
 		if (brushParameters['type'] == 'spectre') then 
 			print(dynSpectreIndex <=6 or brushParameters['spectreMode'] == 'static')
@@ -9791,48 +9804,19 @@ function M.mouseReleased(e)
 	
 	if button == 2 then
 		MouseHighlight.setCircle('red', false)
-	-- if startButton == 2 then
-		-- print('startButton == 2')
-	
-	
+
 		if math.abs(x - buttonsPressed[2].sx) < 25 or math.abs(y - buttonsPressed[2].sy) < 25 then
-			-- print('smal')
-		
 			selects[selectIndex] = nil
-			local toDelete = getIntersected(x, y)
-			-- print('del', toDelete)
-		
-			if not (toDelete == nil) then
-				-- print('have target', toDelete)
-				
-				selects[selectIndex] = nil
-				selectIndex = selectIndex - 1
-				table.remove(selects, toDelete)
-				table.insert(selects, nil)
-				resendSelectsParameters('speed')
-				resendSelectsParameters('volume')
-				resendSelectsParameters('frames')
-				resendSelectsParameters('osc')
-			
-			end
-		
+			activeSelectIndex = activeSelectBeforeCreate
 		else
-			-- print('not small')
-		
+			local created = selectIndex
 			if selectIndex <= SEL_CNT then
 				selectIndex = selectIndex + 1
 			end
-		
+			activeSelectIndex = created
 		end
-
-
+		activeSelectBeforeCreate = nil
 		buttonsPressed[2] = false
-
-		
-		getActiveSelectIndex(x, y)
-	
-		-- print('buttonsPressed[2] = false', not(not buttonsPressed[2]), not(not buttonsPressed[0]))
-	
 	end
 	
 	
@@ -9840,41 +9824,15 @@ function M.mouseReleased(e)
 	if button == 1 then
 		MouseHighlight.setCircle('green', false)
 		
-		-- Очищаем предварительный параметр при отпускании кнопки
 		previewParameter = nil
 
-		local target = getActiveSelectIndex(x, y)
-	
-		if target then
-			changeSelectParameter(target, 'current', 1)
+		if (isSetting) then
+			changeSetting('current', 1)
 		else
-			-- local isLong = (os.clock() - button1PressedTime) > 0.5;
-			-- local isShort = (os.clock() - button1PressedTime) < 0.5;
-			
-			-- if isLong then
-			-- 	if not buttonsPressed[0] then 
-			-- 		isSetting = not isSetting
-			-- 	end
-			-- else
-			-- 	if (isSetting) then
-			-- 		changeSetting('current', 1)
-			-- 	else
-			-- 		if (isShort) then
-			-- 			changeBrushParameter('current', 1)
-			-- 		end
-			-- 	end
-				
-			-- end
-
-			if (isSetting) then
-        changeSetting('current', 1)
-      else
-        if buttonsPressed[0] and brushParameters['type'] == 'fractal' then
-        else
-          changeBrushParameter('current', 1)
-        end
-      end
-			
+			if buttonsPressed[0] and brushParameters['type'] == 'fractal' then
+			else
+				changeBrushParameter('current', 1)
+			end
 		end
 		
 		buttonsPressed[1] = false
@@ -10066,11 +10024,6 @@ function M.mouseReleased(e)
 		end
 
 		buttonsPressed[0] = false
-
-
-		if (buttonsPressed[2]) then
-			getActiveSelectIndex(x, y)
-		end
 	end
 	
 	
@@ -10082,38 +10035,16 @@ function M.mouseReleased(e)
 		prevPointX = nil
 		prevPointY = nil
 	end
-
-	
-print(111)
 	
 	-- print('->', selectIndex)
 	
 end
 
 function M.mouseScrolled(e)
-	
-	-- for k, v in pairs(e) do
-	-- 	print('---',k, v)
-	-- end
-	-- print("scrol", e.x, e.y, a[3], a[4], getIntersected(e.x, e.y), "111")
-
-	
-	local x = unscaledX(e.x)
-	local y = unscaledY(e.y)
-	
-	-- local target = (not (startButton == 0)) and (not isSetting) and getIntersected(x, y)
-	local target = getActiveSelectIndex(x, y)
-	
-	if target then
-		changeSelectParameter(target, selects[target]['current'], e.scrollY)
+	if (isSetting) then
+		changeSetting(generalSettings['current'], e.scrollY)
 	else
-		if (isSetting) then
-			changeSetting(generalSettings['current'], e.scrollY)
-		else
-
-			changeBrushParameter(brushParameters['current'], e.scrollY)
-
-		end
+		changeBrushParameter(brushParameters['current'], e.scrollY)
 	end
 
 	MouseHighlight.showDiameters(e.scrollY > 0 and 1 or -1)
@@ -10128,16 +10059,7 @@ function M.mouseMoved(e)
 	local x = unscaledX(e.x)
 	local y = unscaledY(e.y)
 
-	-- print(221,startButton, not (startButton == 0))
-	-- activeSelectIndex = (not (startButton == 0)) and (not isSetting) and getIntersected(x, y)
-	getActiveSelectIndex(x, y);
 	getActiveDynSpectreIndex(x, y);
-
-	
-    -- fbo2:readToPixels(pixels)
-	-- if (x > 0 and y >0 and x < wW and y < wH) then
-	-- 	cursorPix = pixels:getColor(x, y)
-	-- end
 
 	if (buttonsPressed[0] or buttonsPressed[1] or buttonsPressed[2]) then 
 		mouseDragged(e)
@@ -10148,45 +10070,13 @@ function M.mouseMoved(e)
 
 end
 function getNextParameter(target)
-    local delta = 1
-    
-    if target then
-        -- Если находимся над выделением, переключаем параметр выделения
-        local currentParam = selects[target]['current']
-        local paramSettings = selectParametersSettings[currentParam]
-        
-        if paramSettings then
-            -- Используем getNextRadioItem для правильного вычисления следующего значения
-            local nextValue = getNextRadioItem(delta, selects[target]['current'], selectParametersSettings['current'].items)
-            
-            if buttonsPressed[0] and brushParameters['current'] == 'scale' then
-              return nil
-            else
-              return {type = 'select', target = target, param = nextValue}
-            end
-        end
-    else
-        -- Если не над выделением, переключаем параметр кисти
-        local currentParam = brushParameters['current']
-        local paramSettings = brushParametersSettings[currentParam]
-        
-        print(11)
-        if paramSettings then
-            
-          
-          
-            -- Используем getNextRadioItem для правильного вычисления следующего значения
-            local nextValue = getNextRadioItem(1, brushParameters['current'],  getBrushParamsByCurrentType() )
-            
-            if buttonsPressed[0] and brushParameters['type'] == 'fractal' then
-              return nil
-            else
-              return {type = 'brush', param = nextValue}
-            end
-        end
+    if isSetting then
+        return { type = 'setting', param = getNextRadioItem(1, generalSettings['current'], generalSettingsSettings['current'].items) }
     end
-    
-    return nil
+    if buttonsPressed[0] and brushParameters['type'] == 'fractal' then
+        return nil
+    end
+    return { type = 'brush', param = getNextRadioItem(1, brushParameters['current'], getBrushParamsByCurrentType()) }
 end
 if type(window) ~= "userdata" then window = ofWindow() end
 local canvas = ofCanvas(this)
@@ -10494,7 +10384,6 @@ function getIntersected(x, y)
             local isY = (y > selects[i]['sy'] and y < selects[i]['sy'] + selects[i]['h']) or (y < selects[i]['sy'] and y > selects[i]['sy'] + selects[i]['h'])
             local ddd = (isW and isX) and (isH and isY)
 
-            -- print(i, isW, isH, isX, isY)
             if ddd then
                 return i
             end
@@ -10514,8 +10403,6 @@ function getDynSpectreIntersected(x, y)
             local isY = (y > dynamicSpectre['y'] and y < dynamicSpectre['y'] + dynamicSpectre['h']) or (y < dynamicSpectre['y'] and y > dynamicSpectre['y'] + dynamicSpectre['h'])
             local ddd = (isW and isX) and (isH and isY)
 
-            -- print('----', i, dynamicSpectre['x'], dynamicSpectre['y'], dynamicSpectre['w'], dynamicSpectre['h'])
-            -- print(i, isW, isH, isX, isY)
             if ddd then
                 return i
             end
@@ -10525,13 +10412,6 @@ function getDynSpectreIntersected(x, y)
 end
 
 function getActiveSelectIndex(x, y)
-    if (buttonsPressed[0]) then
-        activeSelectIndex = nil
-    elseif (buttonsPressed[2]) then 
-        activeSelectIndex = selectIndex
-    else
-	    activeSelectIndex = (not isSetting) and getIntersected(x, y)
-    end
     return activeSelectIndex
 end
 
@@ -10546,7 +10426,6 @@ function getActiveDynSpectreIndex(x, y)
     end
     return activeDynSpectreIndex
 end
-
 function resendSelectsParameters(parameter)
     
     local parameterIndex = selectParametersSettings[parameter].index
@@ -10576,6 +10455,40 @@ function clearSelect(index)
     selectIndex = firstEmptyIndex
     
     
+end
+
+local function firstEmptySelectSlot()
+    for i = 1, SEL_CNT do
+        if not selects[i] then
+            return i
+        end
+    end
+end
+
+function deleteSelect(index)
+    if not index or not selects[index] then
+        return
+    end
+    table.remove(selects, index)
+    table.insert(selects, nil)
+    resendSelectsParameters('speed')
+    resendSelectsParameters('volume')
+    resendSelectsParameters('frames')
+    resendSelectsParameters('osc')
+    selectIndex = firstEmptySelectSlot() or (SEL_CNT + 1)
+    if selects[index] then
+        activeSelectIndex = index
+    elseif index > 1 and selects[index - 1] then
+        activeSelectIndex = index - 1
+    else
+        activeSelectIndex = nil
+        for i = 1, SEL_CNT do
+            if selects[i] then
+                activeSelectIndex = i
+                break
+            end
+        end
+    end
 end
 
 function changeSelectParameter(target, name, delta)
@@ -11109,19 +11022,21 @@ function MouseHighlight.draw(smalltext)
     ofDisableAlphaBlending()
 end
 
--- Функция для отрисовки легенды в правом нижнем углу
 function MouseHighlight.drawLegend(smalltext)
     local screenWidth = ofGetWidth()
     local screenHeight = ofGetHeight()
-    
-    -- Параметры легенды
-    local legendX = screenWidth - 150 * generalSettings["font"]
-    local legendY = screenHeight - 195 * generalSettings["font"]
-    local circleSize = 10 * generalSettings["font"]                -- размер кругов в легенде
-    local lineHeight = 25 * generalSettings["font"]              -- высота строки
-    local textOffset = 20 * generalSettings["font"]               -- отступ текста от кругов
-    
-    -- Включаем альфа-блендинг для текста
+    local font = generalSettings["font"]
+    local circleSize = 10 * font
+    local lineHeight = 25 * font
+    local textOffset = 20 * font
+    local crossSize = circleSize
+    local colW = 120 * font
+    local rightX = screenWidth - 70 * font
+    local leftX = rightX - colW
+    local sectionGap = lineHeight * 0.55
+    local rows = 5
+    local startY = screenHeight - 20 * font - rows * lineHeight - sectionGap
+
     ofEnableAlphaBlending()
 
     local function textRight(text)
@@ -11133,67 +11048,91 @@ function MouseHighlight.drawLegend(smalltext)
         end
         return right
     end
-    local function drawName(text, key, y)
+
+    local function drawKey(x, key, y)
         ofSetColor(0, 0, 0, 255)
-        smalltext:drawString(text, legendX + circleSize - textRight(text), y)
-        smalltext:drawString(key, legendX + textOffset, y)
+        smalltext:drawString(key, x + textOffset, y + 5)
     end
-    drawName("clear", "C", legendY - lineHeight * 2 + 5)
-    drawName("legend", "L", legendY - lineHeight + 5)
 
-    ofSetColor(0,0,0, 255)
-    
-    -- Отрисовываем красный круг (правая кнопка)
-    ofSetColor(MouseHighlight.colors.red[1], MouseHighlight.colors.red[2], MouseHighlight.colors.red[3], MouseHighlight.colors.red[4])
-    ofFill()
-    ofDrawCircle(legendX, legendY, circleSize)
-    
-    -- Текст для красного круга
-    ofSetColor(0,0,0, 255)
-    smalltext:drawString("E", legendX + textOffset, legendY + 5)
-    
-    -- Отрисовываем зеленый круг (средняя кнопка)
-    ofSetColor(MouseHighlight.colors.green[1], MouseHighlight.colors.green[2], MouseHighlight.colors.green[3], MouseHighlight.colors.green[4])
-    ofFill()
-    ofDrawCircle(legendX, legendY + lineHeight, circleSize)
-    
-    -- Текст для зеленого круга
-    ofSetColor(0,0,0, 255)
-    smalltext:drawString("A, D", legendX + textOffset, legendY + lineHeight + 5)
-    
-    -- Отрисовываем синий круг (левая кнопка)
-    ofSetColor(MouseHighlight.colors.blue[1], MouseHighlight.colors.blue[2], MouseHighlight.colors.blue[3], MouseHighlight.colors.blue[4])
-    ofFill()
-    ofDrawCircle(legendX, legendY + lineHeight * 2, circleSize)
-    
-    -- Текст для синего круга
-    ofSetColor(0,0,0, 255)
-    smalltext:drawString("Q", legendX + textOffset, legendY + lineHeight * 2 + 5)
-    
-    -- Отрисовываем крест (диаметры)
-    ofSetColor(255, 0, 255, 200) -- тот же цвет, что и у диаметров
-    ofSetLineWidth(1.5 * generalSettings["font"])
-    ofNoFill()
-    
-    local crossX = legendX
-    local crossY = legendY + lineHeight * 3
-    local crossSize = circleSize
-    
-    -- Горизонтальная линия креста
-    ofDrawLine(crossX - crossSize, crossY, crossX + crossSize, crossY)
-    -- Вертикальная линия креста
-    ofDrawLine(crossX, crossY - crossSize, crossX, crossY + crossSize)
-    
-    -- Текст для креста
-    ofSetColor(0,0,0, 255)
-    smalltext:drawString("W S", legendX + textOffset, crossY + 5)
+    local function drawName(x, text, key, y)
+        ofSetColor(0, 0, 0, 255)
+        smalltext:drawString(text, x + circleSize - textRight(text), y + 5)
+        smalltext:drawString(key, x + textOffset, y + 5)
+    end
 
-    local panY = legendY + lineHeight * 4
-    ofSetColor(0, 255, 255, 255)
-    ofFill()
-    ofDrawCircle(legendX, panY, circleSize)
-    ofSetColor(0, 0, 0, 255)
-    smalltext:drawString("F", legendX + textOffset, panY + 5)
+    local function drawCircleAt(x, y, r, g, b, a)
+        ofSetColor(r, g, b, a or 255)
+        ofFill()
+        ofDrawCircle(x, y, circleSize)
+    end
+
+    local function drawCross(x, y, r, g, b, a)
+        ofSetColor(r, g, b, a or 255)
+        ofSetLineWidth(1.5 * font)
+        ofNoFill()
+        ofDrawLine(x - crossSize, y, x + crossSize, y)
+        ofDrawLine(x, y - crossSize, x, y + crossSize)
+    end
+
+    local function drawX(x, y, r, g, b, a)
+        ofSetColor(r, g, b, a or 255)
+        ofSetLineWidth(1.5 * font)
+        ofNoFill()
+        ofDrawLine(x - crossSize, y - crossSize, x + crossSize, y + crossSize)
+        ofDrawLine(x - crossSize, y + crossSize, x + crossSize, y - crossSize)
+    end
+
+    local function drawSquare(x, y, r, g, b, a)
+        ofSetColor(r, g, b, a or 255)
+        ofSetLineWidth(1.5 * font)
+        ofNoFill()
+        ofDrawRectangle(x - crossSize, y - crossSize, crossSize * 2, crossSize * 2)
+    end
+
+    local function drawSquareX(x, y, r, g, b, a)
+        drawSquare(x, y, r, g, b, a)
+        ofDrawLine(x - crossSize, y - crossSize, x + crossSize, y + crossSize)
+        ofDrawLine(x - crossSize, y + crossSize, x + crossSize, y - crossSize)
+    end
+
+    local br, bg, bb, ba = MouseHighlight.colors.blue[1], MouseHighlight.colors.blue[2], MouseHighlight.colors.blue[3], MouseHighlight.colors.blue[4]
+    local rr, rg, rb, ra = MouseHighlight.colors.red[1], MouseHighlight.colors.red[2], MouseHighlight.colors.red[3], MouseHighlight.colors.red[4]
+    local gr, gg, gb, ga = MouseHighlight.colors.green[1], MouseHighlight.colors.green[2], MouseHighlight.colors.green[3], MouseHighlight.colors.green[4]
+
+    local y = startY
+    drawName(leftX, "legend", "L", y)
+    y = y + lineHeight + sectionGap
+
+    local qGap = 4 * font
+    drawCircleAt(leftX - crossSize * 2 - qGap, y, br, bg, bb, ba)
+    drawSquareX(leftX, y, br, bg, bb, ba)
+    drawKey(leftX, "Q", y)
+    drawCircleAt(rightX, y, rr, rg, rb, ra)
+    drawKey(rightX, "E", y)
+    y = y + lineHeight
+
+    drawX(leftX, y, br, bg, bb, ba)
+    drawKey(leftX, "C", y)
+    drawX(rightX, y, rr, rg, rb, ra)
+    drawKey(rightX, "R", y)
+    y = y + lineHeight
+
+    drawCircleAt(leftX, y, gr, gg, gb, ga)
+    drawKey(leftX, "A, D", y)
+    drawSquare(rightX, y, rr, rg, rb, ra)
+    drawKey(rightX, "1-6", y)
+    y = y + lineHeight
+
+    drawCross(leftX, y, 255, 0, 255, 200)
+    drawKey(leftX, "W S", y)
+    drawCircleAt(rightX, y, gr, gg, gb, ga)
+    drawKey(rightX, "G J", y)
+    y = y + lineHeight
+
+    drawCircleAt(leftX, y, 0, 255, 255, 255)
+    drawKey(leftX, "F", y)
+    drawCross(rightX, y, 255, 0, 255, 200)
+    drawKey(rightX, "Y H", y)
 
     ofSetLineWidth(1)
 end
